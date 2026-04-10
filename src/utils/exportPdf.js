@@ -19,14 +19,38 @@ const ensureHtml2Canvas = async () => {
 };
 
 const captureElement = async (ref) => {
+  const el = ref.current;
   const html2canvas = await ensureHtml2Canvas();
-  return html2canvas(ref.current, {
+
+  // Temporarily show hidden elements for capture
+  const wasHidden = el.style.display === "none";
+  if (wasHidden) {
+    el.style.display = "flex";
+    el.style.position = "absolute";
+    el.style.left = "-9999px";
+    el.style.width = "900px";
+    el.style.height = "600px";
+    // Allow layout to settle
+    await new Promise(r => setTimeout(r, 100));
+  }
+
+  const canvas = await html2canvas(el, {
     backgroundColor: "#080d1a",
     scale: 2,
     useCORS: true,
     allowTaint: true,
     logging: false,
   });
+
+  if (wasHidden) {
+    el.style.display = "none";
+    el.style.position = "";
+    el.style.left = "";
+    el.style.width = "";
+    el.style.height = "";
+  }
+
+  return canvas;
 };
 
 const addHeader = (pdf, problem, pageWidth, margin) => {
