@@ -83,7 +83,7 @@ export default function NetworkPhase({
         </button>
       </aside>
 
-      <main style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <main style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "auto", minHeight: 0 }}>
         <div style={{ display: "flex", alignItems: "center", borderBottom: "1px solid rgba(255,255,255,0.05)", padding: "0 14px" }}>
           <div style={{ display: "flex", flex: 1 }}>
             {["graph", "analysis", "data"].map(t => (

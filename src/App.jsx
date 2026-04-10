@@ -354,7 +354,7 @@ export default function App() {
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: "#080d1a", color: "#e2e8f0", fontFamily: "sans-serif", display: "flex", flexDirection: "column" }}>
+    <div style={{ height: "100vh", background: "#080d1a", color: "#e2e8f0", fontFamily: "sans-serif", display: "flex", flexDirection: "column" }}>
       <style>{"@keyframes spin{to{transform:rotate(360deg)}}"}</style>
 
       <ScreenshotModal screenshot={screenshot} onClose={() => setScreenshot(null)} />
