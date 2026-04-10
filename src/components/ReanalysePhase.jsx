@@ -117,7 +117,6 @@ export default function ReanalysePhase({
               placeholder="Bijv. 'Cacioppo et al. (2010) \u2014 https://doi.org/...'"
               style={{ width: "100%", padding: "9px 12px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)",
                 borderRadius: 8, color: "#e2e8f0", fontSize: 12, outline: "none", boxSizing: "border-box", marginBottom: 8 }} />
-            </label>
             <button onClick={() => {
               if (!reanalyseNewSource.trim()) return;
               const urlMatch = reanalyseNewSource.match(/https?:\/\/[^\s)]+/);
