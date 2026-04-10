@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { TYPES, uid } from "../constants";
 import { readFile } from "../utils/sources";
 
@@ -12,6 +13,25 @@ export default function ReanalysePhase({
   uploadedDocs, setUploadedDocs,
   onExecute
 }) {
+  const [dragOver, setDragOver] = useState(false);
+
+  const handleFileDrop = async (e) => {
+    e.preventDefault();
+    setDragOver(false);
+    const files = Array.from(e.dataTransfer?.files || e.target?.files || [])
+      .filter(f => f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf"));
+    if (!files.length) return;
+    try {
+      const docs = await Promise.all(files.map(readFile));
+      setUploadedDocs(p => [...p, ...docs].slice(0, 5));
+      docs.forEach(doc => {
+        setReanalyseSources(p => [...p, { id: uid(), text: doc.name, url: null, active: true, isDoc: true, docId: doc.id }]);
+      });
+    } catch (err) {
+      alert("PDF laden mislukt: " + err.message);
+    }
+  };
+
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", background: "radial-gradient(ellipse at 50% 0%,#0d1630,#080d1a)" }}>
       <div style={{ display: "flex", borderBottom: "1px solid rgba(255,255,255,0.06)", padding: "0 32px" }}>
@@ -73,23 +93,30 @@ export default function ReanalysePhase({
             ))}
           </div>
 
+          {/* PDF drop zone */}
+          <div
+            onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={handleFileDrop}
+            style={{ border: `2px dashed ${dragOver ? "#60a5fa" : "rgba(255,255,255,0.12)"}`, borderRadius: 12,
+              padding: "22px 20px", textAlign: "center", marginBottom: 20, cursor: "pointer",
+              background: dragOver ? "rgba(96,165,250,0.06)" : "rgba(255,255,255,0.02)", transition: "all 0.2s" }}>
+            <div style={{ fontSize: 28, marginBottom: 6 }}>{"\ud83d\udcc4"}</div>
+            <p style={{ color: "#475569", fontSize: 12, margin: "0 0 8px" }}>Sleep PDF bestanden hierheen</p>
+            <label style={{ padding: "6px 14px", background: "rgba(96,165,250,0.12)", border: "1px solid rgba(96,165,250,0.3)",
+              borderRadius: 8, color: "#60a5fa", fontSize: 11, cursor: "pointer", display: "inline-block" }}>
+              Of selecteer bestanden
+              <input type="file" accept=".pdf,application/pdf" multiple onChange={handleFileDrop} style={{ display: "none" }} />
+            </label>
+            <p style={{ color: "#334155", fontSize: 10, margin: "6px 0 0" }}>Max 5 PDF bestanden</p>
+          </div>
+
           <div style={{ padding: 16, background: "rgba(255,255,255,0.025)", borderRadius: 10, border: "1px solid rgba(255,255,255,0.06)", marginBottom: 20 }}>
             <div style={{ fontSize: 11, color: "#475569", marginBottom: 10, textTransform: "uppercase", letterSpacing: 1 }}>Nieuwe bron toevoegen</div>
             <input value={reanalyseNewSource} onChange={e => setReanalyseNewSource(e.target.value)}
               placeholder="Bijv. 'Cacioppo et al. (2010) \u2014 https://doi.org/...'"
               style={{ width: "100%", padding: "9px 12px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)",
                 borderRadius: 8, color: "#e2e8f0", fontSize: 12, outline: "none", boxSizing: "border-box", marginBottom: 8 }} />
-            <label style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: "rgba(96,165,250,0.08)",
-              border: "1px dashed rgba(96,165,250,0.3)", borderRadius: 8, cursor: "pointer", fontSize: 12, color: "#60a5fa", marginBottom: 8 }}>
-              {"\ud83d\udcc4"} PDF toevoegen
-              <input type="file" accept=".pdf,application/pdf" onChange={async e => {
-                const f = e.target.files[0]; if (!f) return;
-                try {
-                  const doc = await readFile(f);
-                  setUploadedDocs(p => [...p, doc]);
-                  setReanalyseSources(p => [...p, { id: uid(), text: f.name, url: null, active: true, isDoc: true, docId: doc.id }]);
-                } catch (err) { alert("PDF laden mislukt: " + err.message); }
-              }} style={{ display: "none" }} />
             </label>
             <button onClick={() => {
               if (!reanalyseNewSource.trim()) return;
