@@ -1,7 +1,7 @@
 export const apiUrl = (apiKey) => {
   if (apiKey.trim()) return "https://api.anthropic.com/v1/messages";
-  const isLocal = window.location.hostname === "localhost";
-  return isLocal ? "http://localhost:3001/api/messages" : "/api/messages";
+  const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+  return isLocal ? `http://${window.location.hostname}:3001/api/messages` : "/api/messages";
 };
 
 export const apiHeaders = (apiKey) => {
@@ -26,9 +26,6 @@ export const callAPI = async (apiKey, messages, system, maxTokens) => {
       body: JSON.stringify(body),
     });
   } catch (e) {
-    if (!apiKey.trim()) {
-      throw new Error("Geen API sleutel ingevuld. Klik op 🔑 rechtsboven en voer je Anthropic API sleutel in.");
-    }
     throw new Error("Netwerkfout: " + e.message + ". Controleer je internetverbinding.");
   }
 

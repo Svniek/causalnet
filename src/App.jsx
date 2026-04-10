@@ -85,7 +85,6 @@ export default function App() {
 
   const generateSuggestions = async () => {
     if (!problem.trim()) return;
-    if (!apiKey.trim()) { setSugError("Vul eerst een API sleutel in via \ud83d\udd11 rechtsboven."); return; }
     setSugLoading(true); setSugError(""); setSuggestions({}); setChecked({});
     const prompt = `Je bent een klinisch-wetenschappelijke expert in causal factor network analyse.\nProbleemstelling: "${problem}"\nGenereer factoren. Geef ALLEEN geldig JSON (geen uitleg, geen backticks):\n{"maingoal":["..."],"goal":["..."],"risk":["...","...","...","..."],"protective":["...","...","..."],"amplifying":["...","..."]}\nRegels: maingoal 1-2, goal 2-4, risk 4-6, protective 3-5, amplifying 2-4. Max 5 woorden per factor. Nederlands.`;
     try {
@@ -96,9 +95,7 @@ export default function App() {
           body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 800, messages: [{ role: "user", content: prompt }] })
         });
       } catch (e) {
-        throw new Error(!apiKey.trim()
-          ? "Geen API sleutel ingevuld. Klik op \ud83d\udd11 rechtsboven."
-          : "Netwerkfout: " + e.message);
+        throw new Error("Netwerkfout: " + e.message);
       }
       let data;
       try { data = await res.json(); } catch (e) {
