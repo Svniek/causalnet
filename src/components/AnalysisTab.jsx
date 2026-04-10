@@ -1,7 +1,10 @@
+import { useState } from "react";
 import { TYPES } from "../constants";
 import { renderReport } from "../utils/renderReport";
+import { exportTextPdf, exportFullPdf } from "../utils/exportPdf";
 
-export default function AnalysisTab({ nodes, steps, anaError, anaLoading, report, showRaw, setShowRaw, influence, analysed, onReanalyse, analysisPanelRef }) {
+export default function AnalysisTab({ nodes, steps, anaError, anaLoading, report, showRaw, setShowRaw, influence, analysed, onReanalyse, analysisPanelRef, networkPanelRef, problem }) {
+  const [pdfLoading, setPdfLoading] = useState(false);
   return (
     <div ref={analysisPanelRef} style={{ flex: 1, overflowY: "auto", padding: 20 }}>
       {steps.length > 0 && (
@@ -27,6 +30,24 @@ export default function AnalysisTab({ nodes, steps, anaError, anaLoading, report
             <div style={{ display: "inline-block", padding: "5px 12px", background: "rgba(52,211,153,0.09)", border: "1px solid rgba(52,211,153,0.2)", borderRadius: 20, color: "#34d399", fontSize: 11 }}>
               {"\u2713"} Gewogen analyse compleet &middot; {nodes.length} factoren
             </div>
+            <button onClick={async () => {
+              setPdfLoading(true);
+              try { await exportTextPdf(analysisPanelRef, problem); }
+              catch (e) { alert("PDF mislukt: " + e.message); }
+              setPdfLoading(false);
+            }} disabled={pdfLoading}
+              style={{ padding: "4px 10px", background: "rgba(96,165,250,0.1)", border: "1px solid rgba(96,165,250,0.25)", borderRadius: 8, color: "#60a5fa", fontSize: 10, cursor: pdfLoading ? "wait" : "pointer" }}>
+              {pdfLoading ? "\u23f3" : "\ud83d\udcc4"} PDF Tekst
+            </button>
+            <button onClick={async () => {
+              setPdfLoading(true);
+              try { await exportFullPdf(networkPanelRef, analysisPanelRef, nodes, influence, problem); }
+              catch (e) { alert("PDF mislukt: " + e.message); }
+              setPdfLoading(false);
+            }} disabled={pdfLoading}
+              style={{ padding: "4px 10px", background: "rgba(124,58,237,0.1)", border: "1px solid rgba(124,58,237,0.25)", borderRadius: 8, color: "#a78bfa", fontSize: 10, cursor: pdfLoading ? "wait" : "pointer" }}>
+              {pdfLoading ? "\u23f3" : "\ud83d\udcc4"} PDF Volledig
+            </button>
             <button onClick={() => setShowRaw(r => !r)}
               style={{ padding: "4px 10px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, color: "#475569", fontSize: 10, cursor: "pointer" }}>
               {showRaw ? "\u25b2 Verberg ruwe tekst" : "\u25bc Toon ruwe tekst (debug)"}

@@ -138,7 +138,7 @@ export default function NetworkPhase({
           <AnalysisTab nodes={nodes} steps={steps} anaError={anaError} anaLoading={anaLoading}
             report={report} showRaw={showRaw} setShowRaw={setShowRaw}
             influence={influence} analysed={analysed} onReanalyse={onReanalyse}
-            analysisPanelRef={analysisPanelRef} />
+            analysisPanelRef={analysisPanelRef} networkPanelRef={networkPanelRef} problem={problem} />
         )}
 
         {tab === "data" && (
