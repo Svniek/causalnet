@@ -51,7 +51,7 @@ const addImagePaginated = (pdf, canvas, startY, margin, pageWidth, pageHeight) =
   const availableHeight = pageHeight - startY - margin;
 
   if (imgHeight <= availableHeight) {
-    pdf.addImage(canvas.toDataURL("image/png"), "PNG", margin, startY, imgWidth, imgHeight);
+    pdf.addImage(canvas, "JPEG", margin, startY, imgWidth, imgHeight);
     return;
   }
 
@@ -63,6 +63,8 @@ const addImagePaginated = (pdf, canvas, startY, margin, pageWidth, pageHeight) =
   while (srcY < canvas.height) {
     if (!firstPage) {
       pdf.addPage();
+      pdf.setFillColor(8, 13, 26);
+      pdf.rect(0, 0, pageWidth, pageHeight, "F");
       startY = margin;
     }
     const sliceHeight = (firstPage ? availableHeight : pageHeight - margin * 2) * scale;
@@ -75,7 +77,7 @@ const addImagePaginated = (pdf, canvas, startY, margin, pageWidth, pageHeight) =
     ctx.drawImage(canvas, 0, srcY, canvas.width, actualSlice, 0, 0, canvas.width, actualSlice);
 
     const chunkImgHeight = (actualSlice / canvas.width) * imgWidth;
-    pdf.addImage(chunk.toDataURL("image/png"), "PNG", margin, startY, imgWidth, chunkImgHeight);
+    pdf.addImage(chunk, "JPEG", margin, startY, imgWidth, chunkImgHeight);
 
     srcY += actualSlice;
     firstPage = false;
@@ -124,7 +126,7 @@ export const exportFullPdf = async (networkPanelRef, analysisPanelRef, nodes, in
     ? (graphCanvas.width / graphCanvas.height) * finalGraphHeight
     : graphWidth;
   const graphX = margin + (graphWidth - finalGraphWidth) / 2;
-  pdf.addImage(graphCanvas.toDataURL("image/png"), "PNG", graphX, y, finalGraphWidth, finalGraphHeight);
+  pdf.addImage(graphCanvas, "JPEG", graphX, y, finalGraphWidth, finalGraphHeight);
 
   // --- Page 2: Influence scores ---
   pdf.addPage();
