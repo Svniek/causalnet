@@ -1,0 +1,74 @@
+import { TYPES } from "../constants";
+import { renderReport } from "../utils/renderReport";
+
+export default function AnalysisTab({ nodes, steps, anaError, anaLoading, report, showRaw, setShowRaw, influence, analysed, onReanalyse, analysisPanelRef }) {
+  return (
+    <div ref={analysisPanelRef} style={{ flex: 1, overflowY: "auto", padding: 20 }}>
+      {steps.length > 0 && (
+        <div style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 10, padding: 14, marginBottom: 18 }}>
+          {steps.map(st => (
+            <div key={st.id} style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 8 }}>
+              <div style={{ width: 8, height: 8, borderRadius: "50%", flexShrink: 0, background: st.done ? "#34d399" : "#f59e0b", boxShadow: st.done ? "0 0 7px #34d399" : "0 0 7px #f59e0b" }} />
+              <span style={{ fontSize: 12, color: st.done ? "#334155" : "#e2e8f0" }}>{st.txt}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {anaError && <div style={{ padding: 10, background: "rgba(248,113,113,0.08)", border: "1px solid rgba(248,113,113,0.2)", borderRadius: 7, color: "#f87171", fontSize: 12, marginBottom: 12 }}>{anaError}</div>}
+      {!anaLoading && !report && steps.length === 0 && (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 360 }}>
+          <div style={{ fontSize: 42 }}>{"\ud83d\udccb"}</div>
+          <p style={{ color: "#334155", fontSize: 13, marginTop: 10 }}>Klik "AI Analyse" om correlaties en invloeden te berekenen.</p>
+        </div>
+      )}
+      {report && (
+        <div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
+            <div style={{ display: "inline-block", padding: "5px 12px", background: "rgba(52,211,153,0.09)", border: "1px solid rgba(52,211,153,0.2)", borderRadius: 20, color: "#34d399", fontSize: 11 }}>
+              {"\u2713"} Gewogen analyse compleet &middot; {nodes.length} factoren
+            </div>
+            <button onClick={() => setShowRaw(r => !r)}
+              style={{ padding: "4px 10px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, color: "#475569", fontSize: 10, cursor: "pointer" }}>
+              {showRaw ? "\u25b2 Verberg ruwe tekst" : "\u25bc Toon ruwe tekst (debug)"}
+            </button>
+          </div>
+          {showRaw && (
+            <pre style={{ fontSize: 10, color: "#475569", fontFamily: "monospace", background: "rgba(0,0,0,0.3)",
+              padding: 12, borderRadius: 8, overflowX: "auto", whiteSpace: "pre-wrap", marginBottom: 16, maxHeight: 300, overflowY: "auto" }}>
+              {report}
+            </pre>
+          )}
+          {renderReport(report)}
+          <div style={{ marginTop: 20, padding: 14, background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 10 }}>
+            <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: 1, color: "#475569", marginBottom: 10 }}>Invloedscores per factor</div>
+            {nodes.filter(n => n.type !== "maingoal").sort((a, b) => (influence?.[b.label] || 0) - (influence?.[a.label] || 0)).map(n => {
+              const inf = influence?.[n.label] ?? 0;
+              const t = TYPES[n.type];
+              return (
+                <div key={n.id} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 7 }}>
+                  <div style={{ width: 8, height: 8, borderRadius: "50%", background: t.color, flexShrink: 0 }} />
+                  <span style={{ fontSize: 11, color: "#64748b", width: 180, flexShrink: 0, lineHeight: 1.4, wordBreak: "break-word" }}>{n.label}</span>
+                  <div style={{ flex: 1, height: 5, background: "rgba(255,255,255,0.05)", borderRadius: 3, overflow: "hidden" }}>
+                    <div style={{ width: (inf * 100) + "%", height: "100%", background: t.color, borderRadius: 3, opacity: 0.8 }} />
+                  </div>
+                  <span style={{ fontSize: 10, color: t.color, width: 30, textAlign: "right" }}>{(inf * 100).toFixed(0)}%</span>
+                </div>
+              );
+            })}
+          </div>
+
+          <div style={{ marginTop: 24, padding: 16, background: "rgba(124,58,237,0.06)", border: "1px solid rgba(124,58,237,0.2)", borderRadius: 12 }}>
+            <div style={{ fontSize: 13, color: "#e2e8f0", fontWeight: 600, marginBottom: 4 }}>{"\ud83d\udd04"} Heranalyse uitvoeren</div>
+            <div style={{ fontSize: 12, color: "#475569", marginBottom: 12, lineHeight: 1.6 }}>
+              Pas bronnen en/of factoren aan en voer de analyse opnieuw uit met je nieuwe selectie.
+            </div>
+            <button onClick={onReanalyse}
+              style={{ padding: "10px 20px", background: "linear-gradient(135deg,#7c3aed,#4f46e5)", border: "none", borderRadius: 9, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", boxShadow: "0 4px 16px rgba(124,58,237,0.35)" }}>
+              {"\ud83d\udd04"} Bronnen &amp; factoren aanpassen &rarr;
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
