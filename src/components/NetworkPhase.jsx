@@ -121,18 +121,16 @@ export default function NetworkPhase({
           </div>
         </div>
 
-        {tab === "graph" && (
-          <div ref={networkPanelRef} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", background: "radial-gradient(ellipse at center,#0d1630,#080d1a)", overflow: "hidden" }}>
-            <div ref={graphContainerRef} style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              {nodes.length === 0
-                ? <div style={{ textAlign: "center" }}><div style={{ fontSize: 44 }}>{"\ud83d\udd78\ufe0f"}</div><p style={{ color: "#334155", fontSize: 13, marginTop: 10 }}>Geen factoren.</p></div>
-                : <Graph nodes={nodes} edges={edges} positions={positions}
-                    selected={selected} onSelect={setSelected}
-                    influence={influence} W={W} H={H} analysed={analysed} />
-              }
-            </div>
+        <div ref={networkPanelRef} style={{ flex: 1, display: tab === "graph" ? "flex" : "none", alignItems: "center", justifyContent: "center", background: "radial-gradient(ellipse at center,#0d1630,#080d1a)", overflow: "hidden" }}>
+          <div ref={graphContainerRef} style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            {nodes.length === 0
+              ? <div style={{ textAlign: "center" }}><div style={{ fontSize: 44 }}>{"\ud83d\udd78\ufe0f"}</div><p style={{ color: "#334155", fontSize: 13, marginTop: 10 }}>Geen factoren.</p></div>
+              : <Graph nodes={nodes} edges={edges} positions={positions}
+                  selected={selected} onSelect={setSelected}
+                  influence={influence} W={W} H={H} analysed={analysed} />
+            }
           </div>
-        )}
+        </div>
 
         {tab === "analysis" && (
           <AnalysisTab nodes={nodes} steps={steps} anaError={anaError} anaLoading={anaLoading}

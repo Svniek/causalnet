@@ -83,6 +83,7 @@ const addImagePaginated = (pdf, canvas, startY, margin, pageWidth, pageHeight) =
 };
 
 export const exportTextPdf = async (analysisPanelRef, problem) => {
+  if (!analysisPanelRef?.current) throw new Error("Analyse panel niet beschikbaar");
   const { jsPDF } = await import("jspdf");
   const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const pageWidth = pdf.internal.pageSize.getWidth();
@@ -101,6 +102,8 @@ export const exportTextPdf = async (analysisPanelRef, problem) => {
 };
 
 export const exportFullPdf = async (networkPanelRef, analysisPanelRef, nodes, influence, problem) => {
+  if (!networkPanelRef?.current) throw new Error("Netwerk panel niet beschikbaar — ga eerst naar het Netwerk tabblad");
+  if (!analysisPanelRef?.current) throw new Error("Analyse panel niet beschikbaar");
   const { jsPDF } = await import("jspdf");
   const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const pageWidth = pdf.internal.pageSize.getWidth();
