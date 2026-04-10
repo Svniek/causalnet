@@ -22,16 +22,34 @@ const captureElement = async (ref) => {
   const el = ref.current;
   const html2canvas = await ensureHtml2Canvas();
 
-  // Temporarily show hidden elements for capture
+  // Temporarily show hidden elements for capture at full size
   const wasHidden = el.style.display === "none";
+  const savedStyles = {};
   if (wasHidden) {
+    // Find a visible sibling to get proper dimensions
+    const siblings = Array.from(el.parentElement?.children || []);
+    const visibleSibling = siblings.find(s => s !== el && s.offsetHeight > 0);
+    const w = visibleSibling?.offsetWidth || el.parentElement?.clientWidth || 1200;
+    const h = visibleSibling?.offsetHeight || el.parentElement?.clientHeight || 700;
+
+    savedStyles.display = el.style.display;
+    savedStyles.position = el.style.position;
+    savedStyles.left = el.style.left;
+    savedStyles.top = el.style.top;
+    savedStyles.width = el.style.width;
+    savedStyles.height = el.style.height;
+    savedStyles.zIndex = el.style.zIndex;
+
     el.style.display = "flex";
-    el.style.position = "absolute";
+    el.style.position = "fixed";
     el.style.left = "-9999px";
-    el.style.width = "900px";
-    el.style.height = "600px";
-    // Allow layout to settle
-    await new Promise(r => setTimeout(r, 100));
+    el.style.top = "0";
+    el.style.width = w + "px";
+    el.style.height = h + "px";
+    el.style.zIndex = "-1";
+
+    // Wait for layout + SVG resize
+    await new Promise(r => setTimeout(r, 300));
   }
 
   const canvas = await html2canvas(el, {
@@ -40,14 +58,12 @@ const captureElement = async (ref) => {
     useCORS: true,
     allowTaint: true,
     logging: false,
+    width: el.scrollWidth || el.offsetWidth,
+    height: el.scrollHeight || el.offsetHeight,
   });
 
   if (wasHidden) {
-    el.style.display = "none";
-    el.style.position = "";
-    el.style.left = "";
-    el.style.width = "";
-    el.style.height = "";
+    Object.assign(el.style, savedStyles);
   }
 
   return canvas;
