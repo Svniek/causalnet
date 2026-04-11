@@ -16,6 +16,13 @@ export default function NetworkPhase({
   const [W, setW] = useState(900);
   const [H, setH] = useState(600);
   const [corrThreshold, setCorrThreshold] = useState(0.01);
+  const [hiddenNodes, setHiddenNodes] = useState(new Set());
+
+  const toggleNode = (id) => setHiddenNodes(prev => {
+    const next = new Set(prev);
+    next.has(id) ? next.delete(id) : next.add(id);
+    return next;
+  });
 
   useEffect(() => {
     const update = () => {
@@ -35,7 +42,7 @@ export default function NetworkPhase({
 
   return (
     <div ref={fullPanelRef} style={{ display: "flex", flex: 1, overflow: "hidden" }}>
-      <aside style={{ width: 220, background: "rgba(255,255,255,0.02)", borderRight: "1px solid rgba(255,255,255,0.05)", padding: 14, display: "flex", flexDirection: "column", overflowY: "auto" }}>
+      <aside style={{ width: 250, background: "rgba(255,255,255,0.02)", borderRight: "1px solid rgba(255,255,255,0.05)", padding: 14, display: "flex", flexDirection: "column", overflowY: "auto" }}>
         <div style={{ marginBottom: 16 }}>
           <label style={{ display: "block", fontSize: 9, textTransform: "uppercase", letterSpacing: 1.5, color: "#334155", marginBottom: 8 }}>Factor toevoegen</label>
           <input value={newLabel} onChange={e => setNewLabel(e.target.value)} onKeyDown={e => e.key === "Enter" && addNode()} placeholder="Naam factor..."
@@ -63,15 +70,28 @@ export default function NetworkPhase({
             <div style={{ overflowY: "auto", flex: 1 }}>
               {nodes.map(n => {
                 const inf = influence?.[n.label];
+                const on = !hiddenNodes.has(n.id);
+                const color = TYPES[n.type]?.color;
                 return (
                   <div key={n.id} onClick={() => setSelected(selected === n.id ? null : n.id)}
-                    style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "5px 7px", borderRadius: 6, marginBottom: 3, cursor: "pointer", background: selected === n.id ? "rgba(255,255,255,0.07)" : "transparent" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6, overflow: "hidden", flex: 1 }}>
-                      <div style={{ width: 7, height: 7, borderRadius: "50%", background: TYPES[n.type]?.color, flexShrink: 0 }} />
-                      <span style={{ fontSize: 11, color: "#94a3b8", flex: 1, lineHeight: 1.4, wordBreak: "break-word" }}>{n.label}</span>
-                      {inf != null && <span style={{ fontSize: 9, color: TYPES[n.type]?.color, flexShrink: 0 }}>{(inf * 100).toFixed(0)}%</span>}
+                    style={{ display: "flex", alignItems: "center", gap: 5, padding: "4px 7px", borderRadius: 6, marginBottom: 3,
+                      cursor: "pointer", background: selected === n.id ? "rgba(255,255,255,0.07)" : "transparent",
+                      opacity: on ? 1 : 0.4, transition: "opacity 0.15s" }}>
+                    <div style={{ width: 7, height: 7, borderRadius: "50%", background: on ? color : "#334155", flexShrink: 0 }} />
+                    <span style={{ fontSize: 11, color: "#94a3b8", flex: 1, lineHeight: 1.4, wordBreak: "break-word" }}>{n.label}</span>
+                    {inf != null && <span style={{ fontSize: 9, color: color, flexShrink: 0 }}>{(inf * 100).toFixed(0)}%</span>}
+                    {/* Toggle */}
+                    <div onClick={e => { e.stopPropagation(); toggleNode(n.id); }}
+                      title={on ? "Verbergen" : "Tonen"}
+                      style={{ width: 24, height: 13, borderRadius: 7, flexShrink: 0, cursor: "pointer",
+                        background: on ? "rgba(96,165,250,0.2)" : "rgba(255,255,255,0.05)",
+                        border: `1px solid ${on ? "rgba(96,165,250,0.45)" : "rgba(255,255,255,0.1)"}`,
+                        position: "relative", transition: "all 0.15s" }}>
+                      <div style={{ position: "absolute", top: 2, left: on ? 11 : 2, width: 7, height: 7,
+                        borderRadius: "50%", background: on ? "#60a5fa" : "#334155", transition: "all 0.15s" }} />
                     </div>
-                    <button onClick={e => { e.stopPropagation(); removeNode(n.id); }} style={{ background: "none", border: "none", color: "#1e293b", cursor: "pointer", fontSize: 14, padding: 0, marginLeft: 4 }}>&times;</button>
+                    <button onClick={e => { e.stopPropagation(); removeNode(n.id); }}
+                      style={{ background: "none", border: "none", color: "#1e293b", cursor: "pointer", fontSize: 14, padding: 0, flexShrink: 0 }}>&times;</button>
                   </div>
                 );
               })}
@@ -146,8 +166,10 @@ export default function NetworkPhase({
             <div ref={graphContainerRef} style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
               {nodes.length === 0
                 ? <div style={{ textAlign: "center" }}><div style={{ fontSize: 44 }}>{"\ud83d\udd78\ufe0f"}</div><p style={{ color: "#334155", fontSize: 13, marginTop: 10 }}>Geen factoren.</p></div>
-                : <Graph nodes={nodes}
-                    edges={analysed ? edges.filter(e => (e.correlation ?? 0) >= corrThreshold) : edges}
+                : <Graph
+                    nodes={nodes.filter(n => !hiddenNodes.has(n.id))}
+                    edges={(analysed ? edges.filter(e => (e.correlation ?? 0) >= corrThreshold) : edges)
+                      .filter(e => !hiddenNodes.has(e.from) && !hiddenNodes.has(e.to))}
                     positions={positions} posRef={posRef} onDragNode={onDragNode}
                     selected={selected} onSelect={setSelected}
                     influence={influence} W={W} H={H} analysed={analysed} />
