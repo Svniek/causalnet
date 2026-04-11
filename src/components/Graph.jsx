@@ -1,10 +1,21 @@
 import { useState, useRef, useCallback } from "react";
 import { TYPES, nodeRadius, edgeWidth } from "../constants";
 
-const TYPE_LEGEND = Object.entries(TYPES).map(([, v]) => ({ label: v.label, color: v.color }));
+const TYPE_ENTRIES = Object.entries(TYPES); // [key, {label, color}]
 
 export default function Graph({ nodes, edges, positions, selected, onSelect, influence, W, H, analysed, posRef, onDragNode }) {
   const [tooltip, setTooltip] = useState(null);
+  const [hiddenTypes, setHiddenTypes] = useState(new Set());
+
+  const toggleType = (key) => setHiddenTypes(prev => {
+    const next = new Set(prev);
+    next.has(key) ? next.delete(key) : next.add(key);
+    return next;
+  });
+
+  const visibleNodes = nodes.filter(n => !hiddenTypes.has(n.type));
+  const visibleIds = new Set(visibleNodes.map(n => n.id));
+  const visibleEdges = edges.filter(e => visibleIds.has(e.from) && visibleIds.has(e.to));
   const dragRef = useRef(null); // { nodeId, startX, startY, origX, origY }
   const svgRef = useRef(null);
   const didDragRef = useRef(false);
@@ -61,7 +72,7 @@ export default function Graph({ nodes, edges, positions, selected, onSelect, inf
           </filter>
         </defs>
 
-        {edges.map(e => {
+        {visibleEdges.map(e => {
           const fp = positions[e.from], tp = positions[e.to];
           if (!fp || !tp) return null;
           const fromNode = nodes.find(n => n.id === e.from);
@@ -108,7 +119,7 @@ export default function Graph({ nodes, edges, positions, selected, onSelect, inf
           );
         })}
 
-        {nodes.map(n => {
+        {visibleNodes.map(n => {
           const p = positions[n.id]; if (!p) return null;
           const t = TYPES[n.type];
           const r = nodeRadius(n, influence);
@@ -185,16 +196,28 @@ export default function Graph({ nodes, edges, positions, selected, onSelect, inf
         </div>
       )}
 
-      {/* Type legend — bottom left */}
+      {/* Type legend — bottom left with toggles */}
       <div style={{ position: "absolute", bottom: 10, left: 10, background: "rgba(8,13,26,0.88)",
-        border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "10px 14px", fontSize: 10, color: "#475569" }}>
+        border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "10px 14px", fontSize: 10, color: "#475569", userSelect: "none" }}>
         <div style={{ marginBottom: 7, color: "#64748b", fontWeight: 600, letterSpacing: 0.5, fontSize: 9, textTransform: "uppercase" }}>Legenda</div>
-        {TYPE_LEGEND.map(({ label, color }) => (
-          <div key={label} style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 5 }}>
-            <div style={{ width: 9, height: 9, borderRadius: "50%", background: color, flexShrink: 0 }} />
-            <span>{label}</span>
-          </div>
-        ))}
+        {TYPE_ENTRIES.map(([key, { label, color }]) => {
+          const on = !hiddenTypes.has(key);
+          return (
+            <div key={key} onClick={() => toggleType(key)}
+              style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 5, cursor: "pointer",
+                opacity: on ? 1 : 0.35, transition: "opacity 0.15s" }}>
+              <div style={{ width: 9, height: 9, borderRadius: "50%", background: on ? color : "#334155",
+                flexShrink: 0, transition: "background 0.15s" }} />
+              <span style={{ flex: 1 }}>{label}</span>
+              <div style={{ width: 26, height: 14, borderRadius: 7, background: on ? "rgba(96,165,250,0.25)" : "rgba(255,255,255,0.06)",
+                border: `1px solid ${on ? "rgba(96,165,250,0.5)" : "rgba(255,255,255,0.1)"}`,
+                position: "relative", flexShrink: 0, transition: "all 0.15s" }}>
+                <div style={{ position: "absolute", top: 2, left: on ? 13 : 2, width: 8, height: 8,
+                  borderRadius: "50%", background: on ? "#60a5fa" : "#334155", transition: "all 0.15s" }} />
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       {analysed && (
