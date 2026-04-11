@@ -52,8 +52,9 @@ export const readFile = async (file) => {
   const arrayBuffer = await file.arrayBuffer();
   const result = await extractText(new Uint8Array(arrayBuffer));
 
-  // result kan { text, totalPages } of direct een string zijn
-  const text = typeof result === "string" ? result : result?.text || "";
+  // result is { text: string[], totalPages: number }
+  const pages = Array.isArray(result?.text) ? result.text : [String(result?.text || "")];
+  const text = pages.join("\n\n");
 
   if (!text.trim()) throw new Error(`Geen tekst gevonden in ${file.name}. Het bestand bevat mogelijk alleen afbeeldingen.`);
 
