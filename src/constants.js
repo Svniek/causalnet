@@ -19,8 +19,7 @@ export const edgeWidth = (corr) => 1 + (corr ?? 0.3) * 8;
 
 export const targetDist = (influence, label, W = 900, H = 600) => {
   const score = Math.max(0.05, influence?.[label] ?? 0.5);
-  const base = Math.min(W, H);
-  const maxDist = base * 0.58;
-  const minDist = base * 0.06;
-  return minDist + (1 - score) * (maxDist - minDist);
+  // Quadratic curve: 95%→40px, 80%→150px, 50%→400px, 5%→600px
+  const t = 1 - score;
+  return Math.max(40, -520 * t * t + 1200 * t - 60);
 };

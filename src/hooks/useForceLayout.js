@@ -103,5 +103,12 @@ export default function useForceLayout(nodes, edges, influence, W, H) {
     // W and H are tracked via refs — no restart on resize
   }, [nodes.length, edges.length, influence ? JSON.stringify(influence) : "none"]);
 
-  return { positions: posRef.current, posRef };
+  const onDragNode = (nodeId, x, y) => {
+    if (posRef.current[nodeId]) {
+      posRef.current[nodeId] = { x, y };
+      setTick(t => t + 1);
+    }
+  };
+
+  return { positions: posRef.current, posRef, onDragNode };
 }

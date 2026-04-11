@@ -63,7 +63,7 @@ export default function App() {
   const [netW, setNetW] = useState(900);
   const [netH, setNetH] = useState(600);
   const handleNetResize = useCallback((w, h) => { setNetW(w); setNetH(h); }, []);
-  const { positions, posRef } = useForceLayout(nodes, edges, influence, netW, netH);
+  const { positions, posRef, onDragNode } = useForceLayout(nodes, edges, influence, netW, netH);
 
   const takeScreenshot = async (ref, filename) => {
     if (!ref.current) return;
@@ -461,7 +461,7 @@ export default function App() {
 
       {phase === "network" && (
         <NetworkPhase
-          nodes={nodes} edges={edges} positions={positions}
+          nodes={nodes} edges={edges} positions={positions} posRef={posRef} onDragNode={onDragNode}
           selected={selected} setSelected={setSelected}
           influence={influence} analysed={analysed}
           newLabel={newLabel} setNewLabel={setNewLabel}

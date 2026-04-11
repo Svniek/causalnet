@@ -1,12 +1,53 @@
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { TYPES, nodeRadius, edgeWidth } from "../constants";
 
-export default function Graph({ nodes, edges, positions, selected, onSelect, influence, W, H, analysed }) {
+export default function Graph({ nodes, edges, positions, selected, onSelect, influence, W, H, analysed, posRef, onDragNode }) {
   const [tooltip, setTooltip] = useState(null);
+  const dragRef = useRef(null); // { nodeId, startX, startY, origX, origY }
+  const svgRef = useRef(null);
+  const didDragRef = useRef(false);
+
+  const toSvgCoords = useCallback((clientX, clientY) => {
+    const svg = svgRef.current;
+    if (!svg) return { x: clientX, y: clientY };
+    const rect = svg.getBoundingClientRect();
+    return {
+      x: (clientX - rect.left) * (W / rect.width),
+      y: (clientY - rect.top) * (H / rect.height),
+    };
+  }, [W, H]);
+
+  const handleMouseDown = useCallback((e, nodeId) => {
+    e.stopPropagation();
+    const coords = toSvgCoords(e.clientX, e.clientY);
+    const pos = positions[nodeId];
+    if (!pos) return;
+    didDragRef.current = false;
+    dragRef.current = { nodeId, startX: coords.x, startY: coords.y, origX: pos.x, origY: pos.y };
+  }, [toSvgCoords, positions]);
+
+  const handleMouseMove = useCallback((e) => {
+    if (!dragRef.current) return;
+    const { nodeId, startX, startY, origX, origY } = dragRef.current;
+    const coords = toSvgCoords(e.clientX, e.clientY);
+    const dx = coords.x - startX, dy = coords.y - startY;
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) didDragRef.current = true;
+    const r = nodeRadius(nodes.find(n => n.id === nodeId) || { type: "risk", label: "" }, influence);
+    const pad = r + 15;
+    onDragNode(nodeId,
+      Math.max(pad, Math.min(W - pad, origX + dx)),
+      Math.max(pad, Math.min(H - pad, origY + dy))
+    );
+  }, [toSvgCoords, onDragNode, nodes, influence, W, H]);
+
+  const handleMouseUp = useCallback(() => {
+    dragRef.current = null;
+  }, []);
 
   return (
     <div style={{ position: "relative", width: "100%", height: "100%" }}>
-      <svg width={W} height={H} style={{ display: "block", width: "100%", height: "100%" }}>
+      <svg ref={svgRef} width={W} height={H} style={{ display: "block", width: "100%", height: "100%" }}
+        onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}>
         <defs>
           <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
             <feGaussianBlur stdDeviation="4" result="cb" />
@@ -73,10 +114,11 @@ export default function Graph({ nodes, edges, positions, selected, onSelect, inf
           const inf = influence?.[n.label];
           return (
             <g key={n.id}
-              onClick={() => onSelect(isSel ? null : n.id)}
+              onMouseDown={e => handleMouseDown(e, n.id)}
+              onClick={() => { if (!didDragRef.current) onSelect(isSel ? null : n.id); }}
               onMouseEnter={ev => setTooltip({ x: ev.clientX, y: ev.clientY, text: n.label + (inf != null ? " \u00b7 invloed: " + (inf * 100).toFixed(0) + "%" : "") })}
               onMouseLeave={() => setTooltip(null)}
-              style={{ cursor: "pointer" }}>
+              style={{ cursor: dragRef.current ? "grabbing" : "grab" }}>
               <circle cx={p.x} cy={p.y} r={r + 14} fill={t.color} opacity={isSel ? 0.22 : inf > 0.7 ? 0.14 : 0.05} />
               {inf > 0.7 && <circle cx={p.x} cy={p.y} r={r + 7} fill={t.color} opacity={0.08} />}
               {n.type === "maingoal"

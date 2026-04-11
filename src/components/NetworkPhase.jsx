@@ -5,7 +5,7 @@ import AnalysisTab from "./AnalysisTab";
 import DataTab from "./DataTab";
 
 export default function NetworkPhase({
-  nodes, edges, positions, selected, setSelected, influence, analysed,
+  nodes, edges, positions, posRef, onDragNode, selected, setSelected, influence, analysed,
   newLabel, setNewLabel, newType, setNewType, addNode, removeNode,
   tab, setTab, steps, anaLoading, anaError, report, showRaw, setShowRaw,
   problem, onAnalyze, onReanalyse, supplementSections, addSourceQuick,
@@ -131,7 +131,7 @@ export default function NetworkPhase({
             <div ref={graphContainerRef} style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
               {nodes.length === 0
                 ? <div style={{ textAlign: "center" }}><div style={{ fontSize: 44 }}>{"\ud83d\udd78\ufe0f"}</div><p style={{ color: "#334155", fontSize: 13, marginTop: 10 }}>Geen factoren.</p></div>
-                : <Graph nodes={nodes} edges={edges} positions={positions}
+                : <Graph nodes={nodes} edges={edges} positions={positions} posRef={posRef} onDragNode={onDragNode}
                     selected={selected} onSelect={setSelected}
                     influence={influence} W={W} H={H} analysed={analysed} />
               }
