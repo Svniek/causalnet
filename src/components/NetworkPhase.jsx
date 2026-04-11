@@ -108,7 +108,7 @@ export default function NetworkPhase({
                 <input type="range" min="0.01" max="1.00" step="0.01"
                   value={corrThreshold}
                   onChange={e => setCorrThreshold(parseFloat(e.target.value))}
-                  style={{ width: 90, accentColor: "#f59e0b", cursor: "pointer" }} />
+                  style={{ width: 180, accentColor: "#f59e0b", cursor: "pointer" }} />
                 <span style={{ fontSize: 11, color: "#f59e0b", fontWeight: 600, minWidth: 28 }}>{corrThreshold.toFixed(2)}</span>
                 <span style={{ fontSize: 10, color: "#334155", whiteSpace: "nowrap" }}>({visible}/{edges.length})</span>
               </div>
