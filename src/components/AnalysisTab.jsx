@@ -3,8 +3,11 @@ import { TYPES } from "../constants";
 import { renderReport } from "../utils/renderReport";
 import { exportTextPdf, exportFullPdf } from "../utils/exportPdf";
 
-export default function AnalysisTab({ nodes, steps, anaError, anaLoading, report, showRaw, setShowRaw, influence, analysed, onReanalyse, analysisPanelRef, networkPanelRef, problem }) {
+export default function AnalysisTab({ nodes, steps, anaError, anaLoading, report, showRaw, setShowRaw, influence, analysed, onReanalyse, analysisPanelRef, networkPanelRef, problem, supplementSections, addSourceQuick }) {
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [quickSource, setQuickSource] = useState("");
+  const [quickLoading, setQuickLoading] = useState(false);
+  const [quickError, setQuickError] = useState("");
   return (
     <div ref={analysisPanelRef} style={{ flex: 1, overflowY: "auto", padding: 20 }}>
       {steps.length > 0 && (
@@ -88,6 +91,59 @@ export default function AnalysisTab({ nodes, steps, anaError, anaLoading, report
               {"\ud83d\udd04"} Bronnen &amp; factoren aanpassen &rarr;
             </button>
           </div>
+
+          {/* Quick add source */}
+          <div style={{ marginTop: 24, padding: 16, background: "rgba(96,165,250,0.06)", border: "1px solid rgba(96,165,250,0.2)", borderRadius: 12 }}>
+            <div style={{ fontSize: 13, color: "#e2e8f0", fontWeight: 600, marginBottom: 4 }}>{"\u2795"} Bron toevoegen</div>
+            <div style={{ fontSize: 12, color: "#475569", marginBottom: 12, lineHeight: 1.6 }}>
+              Voeg een bron toe en krijg een korte analyse van de relevantie voor je factoren &mdash; zonder volledige heranalyse.
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input value={quickSource} onChange={e => setQuickSource(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === "Enter" && quickSource.trim() && !quickLoading) {
+                    setQuickLoading(true); setQuickError("");
+                    addSourceQuick(quickSource.trim())
+                      .then(() => setQuickSource(""))
+                      .catch(e => setQuickError(e.message))
+                      .finally(() => setQuickLoading(false));
+                  }
+                }}
+                placeholder="URL of referentie (bijv. https://doi.org/... of Auteur et al., 2023)"
+                style={{ flex: 1, padding: "9px 12px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)",
+                  borderRadius: 8, color: "#e2e8f0", fontSize: 12, outline: "none" }} />
+              <button onClick={() => {
+                if (!quickSource.trim() || quickLoading) return;
+                setQuickLoading(true); setQuickError("");
+                addSourceQuick(quickSource.trim())
+                  .then(() => setQuickSource(""))
+                  .catch(e => setQuickError(e.message))
+                  .finally(() => setQuickLoading(false));
+              }} disabled={quickLoading || !quickSource.trim()}
+                style={{ padding: "9px 18px", background: quickSource.trim() && !quickLoading ? "linear-gradient(135deg,#60a5fa,#3b82f6)" : "#1e293b",
+                  border: "none", borderRadius: 8, color: quickSource.trim() && !quickLoading ? "#fff" : "#334155",
+                  fontSize: 12, fontWeight: 600, cursor: quickSource.trim() && !quickLoading ? "pointer" : "not-allowed", whiteSpace: "nowrap" }}>
+                {quickLoading ? "\u23f3 Analyseren\u2026" : "+ Analyseer bron"}
+              </button>
+            </div>
+            {quickError && <div style={{ marginTop: 8, fontSize: 11, color: "#f87171" }}>{quickError}</div>}
+          </div>
+
+          {/* Supplementary sections */}
+          {supplementSections?.length > 0 && (
+            <div style={{ marginTop: 24 }}>
+              <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: 1, color: "#60a5fa", marginBottom: 12 }}>Toegevoegde bronnen</div>
+              {supplementSections.map((s, i) => (
+                <div key={i} style={{ marginBottom: 16, padding: 16, background: "rgba(96,165,250,0.06)",
+                  border: "1px solid rgba(96,165,250,0.2)", borderLeft: "3px solid #60a5fa", borderRadius: 10 }}>
+                  <div style={{ fontSize: 11, color: "#60a5fa", fontWeight: 600, marginBottom: 8 }}>
+                    {"\ud83d\udcc4"} {s.source.length > 80 ? s.source.slice(0, 77) + "\u2026" : s.source}
+                  </div>
+                  {renderReport(s.text)}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

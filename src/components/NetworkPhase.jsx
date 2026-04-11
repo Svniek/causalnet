@@ -8,7 +8,8 @@ export default function NetworkPhase({
   nodes, edges, positions, selected, setSelected, influence, analysed,
   newLabel, setNewLabel, newType, setNewType, addNode, removeNode,
   tab, setTab, steps, anaLoading, anaError, report, showRaw, setShowRaw,
-  problem, onAnalyze, onReanalyse, screenshotting, takeScreenshot,
+  problem, onAnalyze, onReanalyse, supplementSections, addSourceQuick,
+  screenshotting, takeScreenshot,
   fullPanelRef, networkPanelRef, analysisPanelRef
 }) {
   const graphContainerRef = useRef(null);
@@ -140,7 +141,8 @@ export default function NetworkPhase({
               <AnalysisTab nodes={nodes} steps={steps} anaError={anaError} anaLoading={anaLoading}
                 report={report} showRaw={showRaw} setShowRaw={setShowRaw}
                 influence={influence} analysed={analysed} onReanalyse={onReanalyse}
-                analysisPanelRef={analysisPanelRef} networkPanelRef={networkPanelRef} problem={problem} />
+                analysisPanelRef={analysisPanelRef} networkPanelRef={networkPanelRef} problem={problem}
+                supplementSections={supplementSections} addSourceQuick={addSourceQuick} />
             </div>
           )}
 

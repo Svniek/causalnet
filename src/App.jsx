@@ -56,6 +56,9 @@ export default function App() {
   // Refine sources (extracted from report)
   const [refineSources, setRefineSources] = useState([]);
 
+  // Supplementary source additions (without full reanalysis)
+  const [supplementSections, setSupplementSections] = useState([]);
+
   const { positions, posRef } = useForceLayout(nodes, edges, influence, 900, 600);
 
   const takeScreenshot = async (ref, filename) => {
@@ -345,11 +348,38 @@ export default function App() {
     setAnaLoading(false);
   };
 
+  const addSourceQuick = async (sourceText) => {
+    const factorList = nodes.map(n => `${n.label} (${TYPES[n.type]?.label})`).join(", ");
+    const prompt =
+      `Probleemstelling: ${problem}\n` +
+      `Factoren in het netwerk: ${factorList}\n\n` +
+      `Nieuwe bron toegevoegd: ${sourceText}\n\n` +
+      `Analyseer kort (max 300 woorden, Nederlands) hoe deze bron de bovenstaande factoren be\u00efnvloedt:\n` +
+      `- Welke factoren worden door deze bron ondersteund of tegengesproken?\n` +
+      `- Zijn er nieuwe inzichten over de sterkte van verbanden?\n` +
+      `- Relevante effectgroottes of statistieken uit deze bron?\n\n` +
+      `Gebruik inline citaten in het formaat ([Auteur, jaar](https://doi.org/xxxxx)) waar mogelijk.`;
+
+    let text = await callAPI(apiKey,
+      [{ role: "user", content: prompt }],
+      "Je bent een klinisch-wetenschappelijke expert. Schrijf beknopt in het Nederlands. Gebruik inline citaten met echte DOI-links.",
+      800
+    );
+
+    // Verify DOIs in the supplement
+    try {
+      text = await verifyDoiLinks(text);
+    } catch {}
+
+    setSupplementSections(prev => [...prev, { source: sourceText, text }]);
+  };
+
   const resetAll = () => {
     setPhase("problem"); setNodes([]); setEdges([]); setReport(""); setSteps([]);
     setSuggestions({}); setChecked({}); setProblem(""); setInfluence(null); setAnalysed(false);
     setUploadedDocs([]); setSourceMode("both"); setShowRaw(false);
     setScreenshot(null); setReanalyseSources([]); setReanalyseNodes([]); setReanalyseStep(1);
+    setSupplementSections([]);
   };
 
   return (
@@ -425,6 +455,7 @@ export default function App() {
             setReanalyseStep(1);
             setPhase("reanalyse");
           }}
+          supplementSections={supplementSections} addSourceQuick={addSourceQuick}
           screenshotting={screenshotting} takeScreenshot={takeScreenshot}
           fullPanelRef={fullPanelRef} networkPanelRef={networkPanelRef} analysisPanelRef={analysisPanelRef} />
       )}
