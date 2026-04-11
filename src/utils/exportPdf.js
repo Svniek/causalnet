@@ -145,6 +145,22 @@ export const exportFullPdf = async (networkPanelRef, analysisPanelRef, nodes, in
   const graphX = margin + (graphWidth - finalGraphWidth) / 2;
   pdf.addImage(canvasToJpeg(graphCanvas), "JPEG", graphX, y, finalGraphWidth, finalGraphHeight);
 
+  // Type legend on graph page (bottom-left corner)
+  const typeEntries = Object.values(TYPES);
+  const legX = margin, legY = pageHeight - margin - typeEntries.length * 5.5 - 8;
+  pdf.setFontSize(7);
+  pdf.setTextColor(100, 116, 139);
+  pdf.text("LEGENDA", legX, legY);
+  typeEntries.forEach((t, i) => {
+    const [lr, lg, lb] = hexToRgb(t.color);
+    const ey = legY + 5 + i * 5.5;
+    pdf.setFillColor(lr, lg, lb);
+    pdf.circle(legX + 1.5, ey - 1.2, 1.5, "F");
+    pdf.setFontSize(7);
+    pdf.setTextColor(148, 163, 184);
+    pdf.text(t.label, legX + 5, ey);
+  });
+
   // --- Page 2: Influence scores ---
   pdf.addPage();
   pdf.setFillColor(8, 13, 26);

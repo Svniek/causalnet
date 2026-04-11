@@ -1,6 +1,8 @@
 import { useState, useRef, useCallback } from "react";
 import { TYPES, nodeRadius, edgeWidth } from "../constants";
 
+const TYPE_LEGEND = Object.entries(TYPES).map(([, v]) => ({ label: v.label, color: v.color }));
+
 export default function Graph({ nodes, edges, positions, selected, onSelect, influence, W, H, analysed, posRef, onDragNode }) {
   const [tooltip, setTooltip] = useState(null);
   const dragRef = useRef(null); // { nodeId, startX, startY, origX, origY }
@@ -182,6 +184,18 @@ export default function Graph({ nodes, edges, positions, selected, onSelect, inf
           {tooltip.text}
         </div>
       )}
+
+      {/* Type legend — bottom left */}
+      <div style={{ position: "absolute", bottom: 10, left: 10, background: "rgba(8,13,26,0.88)",
+        border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "10px 14px", fontSize: 10, color: "#475569" }}>
+        <div style={{ marginBottom: 7, color: "#64748b", fontWeight: 600, letterSpacing: 0.5, fontSize: 9, textTransform: "uppercase" }}>Legenda</div>
+        {TYPE_LEGEND.map(({ label, color }) => (
+          <div key={label} style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 5 }}>
+            <div style={{ width: 9, height: 9, borderRadius: "50%", background: color, flexShrink: 0 }} />
+            <span>{label}</span>
+          </div>
+        ))}
+      </div>
 
       {analysed && (
         <div style={{ position: "absolute", bottom: 10, right: 10, background: "rgba(8,13,26,0.88)",
