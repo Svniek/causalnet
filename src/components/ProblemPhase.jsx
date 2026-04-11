@@ -3,18 +3,6 @@ export default function ProblemPhase({ problem, setProblem, apiKey, sugLoading, 
     <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: 28, background: "radial-gradient(ellipse at 50% 30%,#0d1a35,#080d1a)" }}>
       <div style={{ width: "100%", maxWidth: 560, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 18, padding: 36 }}>
         <div style={{ display: "inline-block", padding: "3px 10px", background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: 20, color: "#f59e0b", fontSize: 10, marginBottom: 16 }}>Stap 1 van 3</div>
-        {!apiKey.trim() && (
-          <div style={{ padding: "10px 14px", background: "rgba(96,165,250,0.08)", border: "1px solid rgba(96,165,250,0.25)", borderRadius: 9, marginBottom: 16, display: "flex", alignItems: "flex-start", gap: 10 }}>
-            <span style={{ fontSize: 16, marginTop: 1 }}>{"\u2139\ufe0f"}</span>
-            <div>
-              <div style={{ fontSize: 12, color: "#60a5fa", fontWeight: 600 }}>Lokale proxy actief (aanbevolen)</div>
-              <div style={{ fontSize: 11, color: "#475569", marginTop: 3, lineHeight: 1.6 }}>
-                Start <code style={{ background: "rgba(255,255,255,0.08)", padding: "1px 5px", borderRadius: 3, color: "#94a3b8" }}>node server.js</code> in je project met je API key als omgevingsvariabele.<br />
-                Of vul je key in via <strong style={{ color: "#60a5fa" }}>{"\ud83d\udd11"} API sleutel</strong> rechtsboven voor een directe verbinding.
-              </div>
-            </div>
-          </div>
-        )}
         <h1 style={{ fontFamily: "Georgia,serif", fontSize: 24, color: "#f1f5f9", margin: "0 0 10px" }}>Wat is je onderwerp of probleemstelling?</h1>
         <p style={{ fontSize: 13, color: "#475569", lineHeight: 1.7, margin: "0 0 18px" }}>Claude genereert wetenschappelijk onderbouwde factoren en berekent na analyse de correlatiesterktes en invloeden &mdash; zichtbaar in de dikte van de lijnen en de grootte van de bollen.</p>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 16 }}>
