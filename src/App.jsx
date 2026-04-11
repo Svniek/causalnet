@@ -3,6 +3,7 @@ import { TYPES, uid } from "./constants";
 import { apiUrl, apiHeaders, callAPI } from "./api";
 import useForceLayout from "./hooks/useForceLayout";
 import { extractSourcesFromReport, readFile } from "./utils/sources";
+import { verifyDoiLinks } from "./utils/verifyDoi";
 import Header from "./components/Header";
 import ProblemPhase from "./components/ProblemPhase";
 import SuggestionPanel from "./components/SuggestionPanel";
@@ -309,6 +310,18 @@ export default function App() {
 
     doneStep();
     addStep("Netwerk bijgewerkt \u2713"); doneStep();
+
+    // Verify DOI links
+    addStep("DOI-links verifi\u00ebren via CrossRef\u2026");
+    try {
+      reportText = await verifyDoiLinks(reportText, (msg) => {
+        setSteps(s => s.map((st, i) => i === s.length - 1 ? { ...st, txt: msg } : st));
+      });
+    } catch (e) {
+      console.warn("DOI verificatie mislukt:", e);
+    }
+    doneStep();
+
     setReport(reportText);
     setAnalysed(true);
 
