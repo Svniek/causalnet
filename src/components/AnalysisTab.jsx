@@ -63,7 +63,7 @@ export default function AnalysisTab({ nodes, steps, anaError, anaLoading, report
             </pre>
           )}
           {renderReport(report)}
-          <div style={{ marginTop: 20, padding: 14, background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 10 }}>
+          <div data-pdf-hide style={{ marginTop: 20, padding: 14, background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 10 }}>
             <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: 1, color: "#475569", marginBottom: 10 }}>Invloedscores per factor</div>
             {nodes.filter(n => n.type !== "maingoal").sort((a, b) => (influence?.[b.label] || 0) - (influence?.[a.label] || 0)).map(n => {
               const inf = influence?.[n.label] ?? 0;
@@ -81,7 +81,7 @@ export default function AnalysisTab({ nodes, steps, anaError, anaLoading, report
             })}
           </div>
 
-          <div style={{ marginTop: 24, padding: 16, background: "rgba(124,58,237,0.06)", border: "1px solid rgba(124,58,237,0.2)", borderRadius: 12 }}>
+          <div data-pdf-hide style={{ marginTop: 24, padding: 16, background: "rgba(124,58,237,0.06)", border: "1px solid rgba(124,58,237,0.2)", borderRadius: 12 }}>
             <div style={{ fontSize: 13, color: "#e2e8f0", fontWeight: 600, marginBottom: 4 }}>{"\ud83d\udd04"} Heranalyse uitvoeren</div>
             <div style={{ fontSize: 12, color: "#475569", marginBottom: 12, lineHeight: 1.6 }}>
               Pas bronnen en/of factoren aan en voer de analyse opnieuw uit met je nieuwe selectie.
@@ -93,7 +93,7 @@ export default function AnalysisTab({ nodes, steps, anaError, anaLoading, report
           </div>
 
           {/* Quick add source */}
-          <div style={{ marginTop: 24, padding: 16, background: "rgba(96,165,250,0.06)", border: "1px solid rgba(96,165,250,0.2)", borderRadius: 12 }}>
+          <div data-pdf-hide style={{ marginTop: 24, padding: 16, background: "rgba(96,165,250,0.06)", border: "1px solid rgba(96,165,250,0.2)", borderRadius: 12 }}>
             <div style={{ fontSize: 13, color: "#e2e8f0", fontWeight: 600, marginBottom: 4 }}>{"\u2795"} Bron toevoegen</div>
             <div style={{ fontSize: 12, color: "#475569", marginBottom: 12, lineHeight: 1.6 }}>
               Voeg een bron toe en krijg een korte analyse van de relevantie voor je factoren &mdash; zonder volledige heranalyse.

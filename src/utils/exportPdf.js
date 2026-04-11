@@ -18,15 +18,31 @@ const ensureHtml2Canvas = async () => {
   });
 };
 
-const captureElement = async (ref) => {
+const captureElement = async (ref, { hidePdfElements = false } = {}) => {
   const html2canvas = await ensureHtml2Canvas();
-  return html2canvas(ref.current, {
+  const el = ref.current;
+
+  // Temporarily hide elements marked with data-pdf-hide
+  const hidden = [];
+  if (hidePdfElements) {
+    el.querySelectorAll("[data-pdf-hide]").forEach(node => {
+      hidden.push({ node, prev: node.style.display });
+      node.style.display = "none";
+    });
+  }
+
+  const canvas = await html2canvas(el, {
     backgroundColor: "#080d1a",
     scale: 2,
     useCORS: true,
     allowTaint: true,
     logging: false,
   });
+
+  // Restore hidden elements
+  hidden.forEach(({ node, prev }) => { node.style.display = prev; });
+
+  return canvas;
 };
 
 const addHeader = (pdf, problem, pageWidth, margin) => {
@@ -98,7 +114,7 @@ export const exportTextPdf = async (analysisPanelRef, problem) => {
 
   const startY = addHeader(pdf, problem, pageWidth, margin);
 
-  const canvas = await captureElement(analysisPanelRef);
+  const canvas = await captureElement(analysisPanelRef, { hidePdfElements: true });
   addImagePaginated(pdf, canvas, startY, margin, pageWidth, pageHeight);
 
   pdf.save(`CausalNet_analyse_${new Date().toISOString().slice(0, 10)}.pdf`);
@@ -197,7 +213,7 @@ export const exportFullPdf = async (networkPanelRef, analysisPanelRef, nodes, in
   pdf.text("Wetenschappelijke analyse", margin, y);
   y += 6;
 
-  const analysisCanvas = await captureElement(analysisPanelRef);
+  const analysisCanvas = await captureElement(analysisPanelRef, { hidePdfElements: true });
   addImagePaginated(pdf, analysisCanvas, y, margin, pageWidth, pageHeight);
 
   pdf.save(`CausalNet_volledig_${new Date().toISOString().slice(0, 10)}.pdf`);
