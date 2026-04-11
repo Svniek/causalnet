@@ -48,7 +48,8 @@ export const extractSourcesFromReport = (text, uploadedDocs) => {
 
 export const readFile = async (file) => {
   const pdfjsLib = await import("pdfjs-dist");
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+  const workerModule = await import("pdfjs-dist/build/pdf.worker.min.mjs");
+  pdfjsLib.GlobalWorkerOptions.workerSrc = workerModule.default || workerModule;
 
   const arrayBuffer = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
