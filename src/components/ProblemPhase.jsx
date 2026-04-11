@@ -12,7 +12,7 @@ export default function ProblemPhase({ problem, setProblem, apiKey, sugLoading, 
         </div>
         <textarea value={problem} onChange={e => setProblem(e.target.value)}
           onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onGenerate(); } }}
-          placeholder="Bijv. 'Schooluitval bij jongeren met ADHD'\u2026" rows={3}
+          placeholder="Bijv. 'Schooluitval bij jongeren met ADHD'..." rows={3}
           style={{ width: "100%", padding: "12px 14px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "#e2e8f0", fontSize: 13, resize: "vertical", outline: "none", boxSizing: "border-box", lineHeight: 1.6, marginBottom: 14, fontFamily: "sans-serif" }} />
         {sugError && <div style={{ padding: 10, background: "rgba(248,113,113,0.08)", border: "1px solid rgba(248,113,113,0.2)", borderRadius: 7, color: "#f87171", fontSize: 12, marginBottom: 12 }}>{sugError}</div>}
         <button onClick={onGenerate} disabled={sugLoading || !problem.trim()}

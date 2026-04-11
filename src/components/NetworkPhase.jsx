@@ -38,7 +38,7 @@ export default function NetworkPhase({
       <aside style={{ width: 220, background: "rgba(255,255,255,0.02)", borderRight: "1px solid rgba(255,255,255,0.05)", padding: 14, display: "flex", flexDirection: "column", overflowY: "auto" }}>
         <div style={{ marginBottom: 16 }}>
           <label style={{ display: "block", fontSize: 9, textTransform: "uppercase", letterSpacing: 1.5, color: "#334155", marginBottom: 8 }}>Factor toevoegen</label>
-          <input value={newLabel} onChange={e => setNewLabel(e.target.value)} onKeyDown={e => e.key === "Enter" && addNode()} placeholder="Naam factor\u2026"
+          <input value={newLabel} onChange={e => setNewLabel(e.target.value)} onKeyDown={e => e.key === "Enter" && addNode()} placeholder="Naam factor..."
             style={{ width: "100%", padding: "7px 10px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: 7, color: "#e2e8f0", fontSize: 12, outline: "none", boxSizing: "border-box", marginBottom: 6, fontFamily: "sans-serif" }} />
           <select value={newType} onChange={e => setNewType(e.target.value)}
             style={{ width: "100%", padding: "7px 10px", background: "#0d1225", border: "1px solid rgba(255,255,255,0.09)", borderRadius: 7, color: "#e2e8f0", fontSize: 12, outline: "none", boxSizing: "border-box", marginBottom: 6 }}>
