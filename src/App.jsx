@@ -4,6 +4,7 @@ import { apiUrl, apiHeaders, callAPI } from "./api";
 import useForceLayout from "./hooks/useForceLayout";
 import { extractSourcesFromReport, readFile } from "./utils/sources";
 import { verifyDoiLinks } from "./utils/verifyDoi";
+import { searchPapersForFactors, formatPapersForPrompt } from "./utils/semanticScholar";
 import Header from "./components/Header";
 import ProblemPhase from "./components/ProblemPhase";
 import SuggestionPanel from "./components/SuggestionPanel";
@@ -155,6 +156,21 @@ export default function App() {
 
     setTab("analysis");
 
+    // Search Semantic Scholar for real papers
+    addStep("Relevante papers zoeken via Semantic Scholar\u2026");
+    let scholarPapers = [];
+    try {
+      scholarPapers = await searchPapersForFactors(currentNodes, problem, (msg) => {
+        setSteps(s => s.map((st, i) => i === s.length - 1 ? { ...st, txt: msg } : st));
+      });
+    } catch (e) {
+      console.warn("Semantic Scholar zoeken mislukt:", e);
+    }
+    doneStep();
+    if (scholarPapers.length > 0) {
+      addStep(`${scholarPapers.length} geverifieerde papers gevonden`); doneStep();
+    }
+
     // CALL 1: Text report
     addStep(reanalyseSources.length > 0
       ? `Wetenschappelijke literatuur raadplegen (${reanalyseSources.filter(s => s.active).length} geselecteerde bronnen)\u2026`
@@ -194,12 +210,15 @@ export default function App() {
           `- Risicofactoren: ${byType("risk").join(", ") || "\u2014"}\n` +
           `- Beschermende factoren: ${byType("protective").join(", ") || "\u2014"}\n` +
           `- Versterkende factoren: ${byType("amplifying").join(", ") || "\u2014"}\n` +
-          docInstruction + `\n\n` +
+          docInstruction +
+          formatPapersForPrompt(scholarPapers) + `\n\n` +
           `CITATIEINSTRUCTIE \u2014 VOLG DIT EXACT:\n` +
           `Na elke feitelijke claim of statistiek plaatst u een inline citaat tussen haakjes, ALTIJD met een klikbare DOI-link in dit exacte formaat:\n` +
           `([Auteur et al., jaar](https://doi.org/xxxxx))\n` +
           `Voorbeeld: "Verlies van partner verhoogt eenzaamheid significant (OR = 2,3) ([Cacioppo & Hawkley, 2010](https://doi.org/10.1111/j.1467-9280.2010.02634.x))"\n` +
-          `Gebruik ECHTE bestaande DOI-links. Gebruik MINIMAAL 2 inline citaten per alinea.\n\n` +
+          (scholarPapers.length > 0
+            ? `BELANGRIJK: Gebruik bij voorkeur de hierboven vermelde geverifieerde bronnen met hun exacte DOI-links. Je mag aanvullende bronnen gebruiken, maar alleen als je ZEKER bent dat de DOI bestaat.\n\n`
+            : `Gebruik ECHTE bestaande DOI-links. Gebruik MINIMAAL 2 inline citaten per alinea.\n\n`) +
           `Schrijf een uitgebreide wetenschappelijke analyse in het Nederlands met precies deze 5 kopjes:\n\n` +
           `## Causale verbanden\nBespreek per factor hoe deze causaal gerelateerd is aan het hoofddoel. Noem voor elke relatie de richting, het mechanisme en de effect size. Gebruik inline citaten na elke claim. Minimaal 200 woorden.\n\n` +
           `## Centrale knooppunten\nAnalyseer welke 3-5 factoren de hoogste betweenness centrality hebben. Gebruik inline citaten. Minimaal 150 woorden.\n\n` +
