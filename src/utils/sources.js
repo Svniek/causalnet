@@ -47,22 +47,12 @@ export const extractSourcesFromReport = (text, uploadedDocs) => {
 };
 
 export const readFile = async (file) => {
-  const pdfjsLib = await import("pdfjs-dist");
-  pdfjsLib.GlobalWorkerOptions.workerSrc = false;
+  const { extractText } = await import("unpdf");
 
   const arrayBuffer = await file.arrayBuffer();
-  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-  const pages = [];
+  const { text } = await extractText(arrayBuffer);
 
-  for (let i = 1; i <= pdf.numPages; i++) {
-    const page = await pdf.getPage(i);
-    const content = await page.getTextContent();
-    const pageText = content.items.map(item => item.str).join(" ");
-    if (pageText.trim()) pages.push(pageText);
-  }
-
-  const text = pages.join("\n\n");
-  if (!text.trim()) throw new Error(`Geen tekst gevonden in ${file.name}. Het bestand bevat mogelijk alleen afbeeldingen.`);
+  if (!text?.trim()) throw new Error(`Geen tekst gevonden in ${file.name}. Het bestand bevat mogelijk alleen afbeeldingen.`);
 
   return { id: uid(), name: file.name, text, size: file.size };
 };
