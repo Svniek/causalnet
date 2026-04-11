@@ -26,28 +26,40 @@ export default function SourcesPhase({ uploadedDocs, setUploadedDocs, sourceMode
         </div>
 
         {uploadedDocs.length > 0 && (() => {
-          const totalMB = uploadedDocs.reduce((sum, d) => sum + d.size, 0) / (1024 * 1024);
-          const tooLarge = totalMB > 3;
+          const totalChars = uploadedDocs.reduce((sum, d) => sum + (d.text?.length || 0), 0);
+          const estTokens = Math.round(totalChars / 4);
+          const maxTokens = 180000;
+          const tooLarge = estTokens > maxTokens;
+          const pct = Math.min(100, Math.round((estTokens / maxTokens) * 100));
           return (
             <div style={{ marginBottom: 20 }}>
-              {uploadedDocs.map(doc => (
-                <div key={doc.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between",
-                  padding: "8px 12px", background: "rgba(96,165,250,0.08)", border: "1px solid rgba(96,165,250,0.2)",
-                  borderRadius: 8, marginBottom: 6 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ fontSize: 16 }}>{"\ud83d\udcc4"}</span>
-                    <div>
-                      <div style={{ fontSize: 12, color: "#e2e8f0" }}>{doc.name}</div>
-                      <div style={{ fontSize: 10, color: "#475569" }}>{(doc.size / 1024).toFixed(0)} KB</div>
+              {uploadedDocs.map(doc => {
+                const docTokens = Math.round((doc.text?.length || 0) / 4);
+                return (
+                  <div key={doc.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between",
+                    padding: "8px 12px", background: "rgba(96,165,250,0.08)", border: "1px solid rgba(96,165,250,0.2)",
+                    borderRadius: 8, marginBottom: 6 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ fontSize: 16 }}>{"\ud83d\udcc4"}</span>
+                      <div>
+                        <div style={{ fontSize: 12, color: "#e2e8f0" }}>{doc.name}</div>
+                        <div style={{ fontSize: 10, color: "#475569" }}>{(doc.size / 1024).toFixed(0)} KB &middot; ~{docTokens.toLocaleString()} tokens</div>
+                      </div>
                     </div>
+                    <button onClick={() => setUploadedDocs(p => p.filter(d => d.id !== doc.id))}
+                      style={{ background: "none", border: "none", color: "#475569", cursor: "pointer", fontSize: 16, padding: 0 }}>&times;</button>
                   </div>
-                  <button onClick={() => setUploadedDocs(p => p.filter(d => d.id !== doc.id))}
-                    style={{ background: "none", border: "none", color: "#475569", cursor: "pointer", fontSize: 16, padding: 0 }}>&times;</button>
+                );
+              })}
+              <div style={{ marginTop: 10 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 11, marginBottom: 6 }}>
+                  <span style={{ color: "#475569" }}>{uploadedDocs.length} bestand{uploadedDocs.length > 1 ? "en" : ""} &middot; ~{estTokens.toLocaleString()} tokens</span>
+                  <span style={{ color: tooLarge ? "#f87171" : "#34d399" }}>{pct}% van limiet</span>
                 </div>
-              ))}
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 8, fontSize: 11 }}>
-                <span style={{ color: "#475569" }}>{uploadedDocs.length} bestand{uploadedDocs.length > 1 ? "en" : ""} &middot; {totalMB.toFixed(1)} MB totaal</span>
-                {tooLarge && <span style={{ color: "#f87171" }}>Let op: grote bestanden kunnen de analyse vertragen of mislukken</span>}
+                <div style={{ height: 4, background: "rgba(255,255,255,0.06)", borderRadius: 2, overflow: "hidden" }}>
+                  <div style={{ width: Math.min(100, pct) + "%", height: "100%", background: tooLarge ? "#f87171" : pct > 70 ? "#f59e0b" : "#34d399", borderRadius: 2, transition: "width 0.3s" }} />
+                </div>
+                {tooLarge && <div style={{ fontSize: 11, color: "#f87171", marginTop: 6 }}>Te veel tekst voor de API. Verwijder enkele bestanden.</div>}
               </div>
             </div>
           );
