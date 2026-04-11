@@ -22,7 +22,7 @@ export default function SourcesPhase({ uploadedDocs, setUploadedDocs, sourceMode
             Of selecteer bestanden
             <input type="file" accept=".pdf,application/pdf" multiple onChange={handleFileDrop} style={{ display: "none" }} />
           </label>
-          <p style={{ color: "#334155", fontSize: 11, margin: "8px 0 0" }}>Max 5 PDF bestanden</p>
+          <p style={{ color: "#334155", fontSize: 11, margin: "8px 0 0" }}>PDF bestanden toevoegen</p>
         </div>
 
         {uploadedDocs.length > 0 && (

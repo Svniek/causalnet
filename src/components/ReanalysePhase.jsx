@@ -23,7 +23,7 @@ export default function ReanalysePhase({
     if (!files.length) return;
     try {
       const docs = await Promise.all(files.map(readFile));
-      setUploadedDocs(p => [...p, ...docs].slice(0, 5));
+      setUploadedDocs(p => [...p, ...docs]);
       docs.forEach(doc => {
         setReanalyseSources(p => [...p, { id: uid(), text: doc.name, url: null, active: true, isDoc: true, docId: doc.id }]);
       });
@@ -108,7 +108,7 @@ export default function ReanalysePhase({
               Of selecteer bestanden
               <input type="file" accept=".pdf,application/pdf" multiple onChange={handleFileDrop} style={{ display: "none" }} />
             </label>
-            <p style={{ color: "#334155", fontSize: 10, margin: "6px 0 0" }}>Max 5 PDF bestanden</p>
+            <p style={{ color: "#334155", fontSize: 10, margin: "6px 0 0" }}>PDF bestanden toevoegen</p>
           </div>
 
           <div style={{ padding: 16, background: "rgba(255,255,255,0.025)", borderRadius: 10, border: "1px solid rgba(255,255,255,0.06)", marginBottom: 20 }}>

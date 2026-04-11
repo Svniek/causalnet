@@ -118,7 +118,7 @@ export default function App() {
     if (!files.length) return;
     try {
       const docs = await Promise.all(files.map(readFile));
-      setUploadedDocs(prev => [...prev, ...docs].slice(0, 5));
+      setUploadedDocs(prev => [...prev, ...docs]);
     } catch (err) {
       alert("PDF laden mislukt: " + err.message);
     }
