@@ -50,9 +50,12 @@ export const readFile = async (file) => {
   const { extractText } = await import("unpdf");
 
   const arrayBuffer = await file.arrayBuffer();
-  const { text } = await extractText(arrayBuffer);
+  const result = await extractText(new Uint8Array(arrayBuffer));
 
-  if (!text?.trim()) throw new Error(`Geen tekst gevonden in ${file.name}. Het bestand bevat mogelijk alleen afbeeldingen.`);
+  // result kan { text, totalPages } of direct een string zijn
+  const text = typeof result === "string" ? result : result?.text || "";
+
+  if (!text.trim()) throw new Error(`Geen tekst gevonden in ${file.name}. Het bestand bevat mogelijk alleen afbeeldingen.`);
 
   return { id: uid(), name: file.name, text, size: file.size };
 };
