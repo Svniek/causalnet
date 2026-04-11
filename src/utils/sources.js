@@ -48,8 +48,7 @@ export const extractSourcesFromReport = (text, uploadedDocs) => {
 
 export const readFile = async (file) => {
   const pdfjsLib = await import("pdfjs-dist");
-  const workerModule = await import("pdfjs-dist/build/pdf.worker.min.mjs");
-  pdfjsLib.GlobalWorkerOptions.workerSrc = workerModule.default || workerModule;
+  pdfjsLib.GlobalWorkerOptions.workerSrc = false;
 
   const arrayBuffer = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
