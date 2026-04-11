@@ -1,4 +1,24 @@
-export default function SourcesPhase({ uploadedDocs, setUploadedDocs, sourceMode, setSourceMode, dragOver, setDragOver, handleFileDrop, onBack, onContinue }) {
+import { useState } from "react";
+
+export default function SourcesPhase({ uploadedDocs, setUploadedDocs, sourceMode, setSourceMode, dragOver, setDragOver, handleFileDrop, onAddUrl, onBack, onContinue }) {
+  const [urlInput, setUrlInput] = useState("");
+  const [urlLoading, setUrlLoading] = useState(false);
+  const [urlError, setUrlError] = useState("");
+
+  const handleUrlAdd = async () => {
+    const url = urlInput.trim();
+    if (!url || urlLoading) return;
+    setUrlLoading(true); setUrlError("");
+    try {
+      await onAddUrl(url);
+      setUrlInput("");
+    } catch (e) {
+      setUrlError(e.message);
+    } finally {
+      setUrlLoading(false);
+    }
+  };
+
   return (
     <div style={{ flex: 1, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: 32, background: "radial-gradient(ellipse at 50% 30%,#0d1a35,#080d1a)", overflowY: "auto" }}>
       <div style={{ width: "100%", maxWidth: 620, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 18, padding: 36, marginTop: "auto", marginBottom: "auto" }}>
@@ -25,6 +45,28 @@ export default function SourcesPhase({ uploadedDocs, setUploadedDocs, sourceMode
           <p style={{ color: "#334155", fontSize: 11, margin: "8px 0 0" }}>PDF bestanden toevoegen</p>
         </div>
 
+        {/* URL input */}
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: 1, color: "#334155", marginBottom: 8 }}>Of voeg een URL toe</div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input
+              value={urlInput}
+              onChange={e => { setUrlInput(e.target.value); setUrlError(""); }}
+              onKeyDown={e => e.key === "Enter" && handleUrlAdd()}
+              placeholder="https://doi.org/... of een webpagina"
+              style={{ flex: 1, padding: "9px 12px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)",
+                borderRadius: 8, color: "#e2e8f0", fontSize: 12, outline: "none", fontFamily: "sans-serif" }} />
+            <button onClick={handleUrlAdd} disabled={!urlInput.trim() || urlLoading}
+              style={{ padding: "9px 16px", background: urlInput.trim() && !urlLoading ? "rgba(96,165,250,0.15)" : "rgba(255,255,255,0.03)",
+                border: `1px solid ${urlInput.trim() && !urlLoading ? "rgba(96,165,250,0.4)" : "rgba(255,255,255,0.08)"}`,
+                borderRadius: 8, color: urlInput.trim() && !urlLoading ? "#60a5fa" : "#334155",
+                fontSize: 12, cursor: urlInput.trim() && !urlLoading ? "pointer" : "not-allowed", whiteSpace: "nowrap", fontWeight: 600 }}>
+              {urlLoading ? "\u23f3" : "+ Toevoegen"}
+            </button>
+          </div>
+          {urlError && <div style={{ marginTop: 6, fontSize: 11, color: "#f87171" }}>{urlError}</div>}
+        </div>
+
         {uploadedDocs.length > 0 && (() => {
           const totalChars = uploadedDocs.reduce((sum, d) => sum + (d.text?.length || 0), 0);
           const estTokens = Math.round(totalChars / 4);
@@ -40,10 +82,13 @@ export default function SourcesPhase({ uploadedDocs, setUploadedDocs, sourceMode
                     padding: "8px 12px", background: "rgba(96,165,250,0.08)", border: "1px solid rgba(96,165,250,0.2)",
                     borderRadius: 8, marginBottom: 6 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={{ fontSize: 16 }}>{"\ud83d\udcc4"}</span>
+                      <span style={{ fontSize: 16 }}>{doc.url ? "\ud83c\udf10" : "\ud83d\udcc4"}</span>
                       <div>
                         <div style={{ fontSize: 12, color: "#e2e8f0" }}>{doc.name}</div>
-                        <div style={{ fontSize: 10, color: "#475569" }}>{(doc.size / 1024).toFixed(0)} KB &middot; ~{docTokens.toLocaleString()} tokens</div>
+                        <div style={{ fontSize: 10, color: "#475569" }}>
+                          {doc.url ? doc.url.slice(0, 50) + (doc.url.length > 50 ? "\u2026" : "") : `${(doc.size / 1024).toFixed(0)} KB`}
+                          {" "}&middot; ~{docTokens.toLocaleString()} tokens
+                        </div>
                       </div>
                     </div>
                     <button onClick={() => setUploadedDocs(p => p.filter(d => d.id !== doc.id))}

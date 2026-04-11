@@ -46,6 +46,15 @@ export const extractSourcesFromReport = (text, uploadedDocs) => {
   return sources;
 };
 
+export const fetchUrl = async (url) => {
+  const apiBase = import.meta.env.DEV ? "http://localhost:3001" : "";
+  const resp = await fetch(`${apiBase}/api/fetch-url?url=${encodeURIComponent(url)}`);
+  const data = await resp.json();
+  if (!resp.ok) throw new Error(data.error || "Ophalen mislukt");
+  const name = new URL(url).hostname + new URL(url).pathname.replace(/\/$/, "").split("/").pop();
+  return { id: uid(), name: name.slice(0, 60) || url.slice(0, 60), text: data.text, size: data.text.length, url };
+};
+
 export const readFile = async (file) => {
   const { extractText } = await import("unpdf");
 

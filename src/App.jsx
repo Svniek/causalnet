@@ -2,7 +2,7 @@ import { useState, useRef, useCallback } from "react";
 import { TYPES, uid } from "./constants";
 import { apiUrl, apiHeaders, callAPI } from "./api";
 import useForceLayout from "./hooks/useForceLayout";
-import { extractSourcesFromReport, readFile } from "./utils/sources";
+import { extractSourcesFromReport, readFile, fetchUrl } from "./utils/sources";
 import { verifyDoiLinks } from "./utils/verifyDoi";
 import { searchPapersForFactors, formatPapersForPrompt } from "./utils/semanticScholar";
 import Header from "./components/Header";
@@ -130,6 +130,11 @@ export default function App() {
     } catch (err) {
       alert("PDF laden mislukt: " + err.message);
     }
+  };
+
+  const handleAddUrl = async (url) => {
+    const doc = await fetchUrl(url);
+    setUploadedDocs(prev => [...prev, doc]);
   };
 
   const addNode = () => {
@@ -441,6 +446,7 @@ export default function App() {
         <SourcesPhase uploadedDocs={uploadedDocs} setUploadedDocs={setUploadedDocs}
           sourceMode={sourceMode} setSourceMode={setSourceMode}
           dragOver={dragOver} setDragOver={setDragOver} handleFileDrop={handleFileDrop}
+          onAddUrl={handleAddUrl}
           onBack={() => setPhase("suggestions")}
           onContinue={() => { setPhase("network"); setTab("graph"); }} />
       )}
