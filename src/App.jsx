@@ -204,10 +204,9 @@ export default function App() {
           `## Wetenschappelijke bronnen\nGeef alle geciteerde bronnen als genummerde lijst. Formatteer ELKE bron EXACT zo (op een eigen regel):\n` +
           `1. [Auteur et al. (jaar). Titel. Tijdschrift, volume(nummer), pagina's.](https://doi.org/xxxxx)\nGebruik dezelfde DOI-links als in de inline citaten hierboven.`
         },
-        ...(activeUploadedDocs).map(doc => ({
-          type: "document",
-          source: { type: "base64", media_type: doc.mediaType, data: doc.base64 },
-          title: doc.name
+        ...(activeUploadedDocs).filter(doc => doc.text).map(doc => ({
+          type: "text",
+          text: `\n\n--- Document: ${doc.name} ---\n${doc.text}\n`
         }))
       ];
 

@@ -46,16 +46,23 @@ export const extractSourcesFromReport = (text, uploadedDocs) => {
   return sources;
 };
 
-export const readFile = (file) => new Promise((resolve, reject) => {
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    const result = e.target.result;
-    const commaIdx = result.indexOf(",");
-    if (commaIdx === -1) { reject(new Error("Ongeldige bestandsencoding")); return; }
-    const b64 = result.slice(commaIdx + 1).replace(/\s/g, "");
-    const mediaType = "application/pdf";
-    resolve({ id: uid(), name: file.name, base64: b64, mediaType, size: file.size });
-  };
-  reader.onerror = () => reject(new Error("Kan bestand niet lezen"));
-  reader.readAsDataURL(file);
-});
+export const readFile = async (file) => {
+  const pdfjsLib = await import("pdfjs-dist");
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  const pages = [];
+
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    const pageText = content.items.map(item => item.str).join(" ");
+    if (pageText.trim()) pages.push(pageText);
+  }
+
+  const text = pages.join("\n\n");
+  if (!text.trim()) throw new Error(`Geen tekst gevonden in ${file.name}. Het bestand bevat mogelijk alleen afbeeldingen.`);
+
+  return { id: uid(), name: file.name, text, size: file.size };
+};
