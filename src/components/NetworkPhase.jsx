@@ -9,7 +9,7 @@ export default function NetworkPhase({
   newLabel, setNewLabel, newType, setNewType, addNode, removeNode,
   tab, setTab, steps, anaLoading, anaError, report, showRaw, setShowRaw,
   problem, onAnalyze, onReanalyse, supplementSections, addSourceQuick,
-  screenshotting, takeScreenshot,
+  screenshotting, takeScreenshot, onResize,
   fullPanelRef, networkPanelRef, analysisPanelRef
 }) {
   const graphContainerRef = useRef(null);
@@ -19,8 +19,11 @@ export default function NetworkPhase({
   useEffect(() => {
     const update = () => {
       if (graphContainerRef.current) {
-        setW(graphContainerRef.current.clientWidth || 900);
-        setH(graphContainerRef.current.clientHeight || 600);
+        const w = graphContainerRef.current.clientWidth || 900;
+        const h = graphContainerRef.current.clientHeight || 600;
+        setW(w);
+        setH(h);
+        onResize?.(w, h);
       }
     };
     update();

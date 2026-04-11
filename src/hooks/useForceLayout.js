@@ -46,40 +46,40 @@ export default function useForceLayout(nodes, edges, influence, W, H) {
         let fx = 0, fy = 0;
         const rA = nodeRadius(a, inf);
 
-        // 1. Repulsion from all other non-center nodes
+        // 1. Repulsion from all other non-center nodes (only collision avoidance)
         others.forEach(b => {
           if (a.id === b.id) return;
           const dx = pos[a.id].x - pos[b.id].x;
           const dy = pos[a.id].y - pos[b.id].y;
           const d = Math.sqrt(dx * dx + dy * dy) + 0.1;
           const rB = nodeRadius(b, inf);
-          const minSep = rA + rB + 70;
-          const force = d < minSep
-            ? (minSep - d) * 4
-            : 5000 / (d * d);
-          fx += (dx / d) * force;
-          fy += (dy / d) * force;
+          const minSep = rA + rB + 40;
+          if (d < minSep) {
+            const force = (minSep - d) * 3;
+            fx += (dx / d) * force;
+            fy += (dy / d) * force;
+          }
         });
 
-        // 2. Spring toward target distance from center
+        // 2. Strong spring toward target distance from center
         if (centerNode && pos[centerNode.id]) {
           const cx = pos[centerNode.id].x, cy = pos[centerNode.id].y;
           const dx = pos[a.id].x - cx;
           const dy = pos[a.id].y - cy;
           const d = Math.sqrt(dx * dx + dy * dy) + 0.1;
           const tgt = targetDist(inf, a.label, W, H);
-          const springForce = (tgt - d) * 0.08;
+          const springForce = (tgt - d) * 0.25;
           fx += (dx / d) * springForce;
           fy += (dy / d) * springForce;
         }
 
         // 3. Gentle pull toward canvas center (prevents drift)
-        fx += (W / 2 - pos[a.id].x) * 0.002;
-        fy += (H / 2 - pos[a.id].y) * 0.002;
+        fx += (W / 2 - pos[a.id].x) * 0.001;
+        fy += (H / 2 - pos[a.id].y) * 0.001;
 
         // Apply with damping
-        vel[a.id].x = (vel[a.id].x * 0.5 + fx * alpha);
-        vel[a.id].y = (vel[a.id].y * 0.5 + fy * alpha);
+        vel[a.id].x = (vel[a.id].x * 0.4 + fx * alpha);
+        vel[a.id].y = (vel[a.id].y * 0.4 + fy * alpha);
 
         const pad = rA + 25;
         pos[a.id].x = Math.max(pad, Math.min(W - pad, pos[a.id].x + vel[a.id].x));
@@ -87,7 +87,7 @@ export default function useForceLayout(nodes, edges, influence, W, H) {
       });
 
       setTick(t => t + 1);
-      if (iterRef.current < 300) frameRef.current = requestAnimationFrame(step);
+      if (iterRef.current < 400) frameRef.current = requestAnimationFrame(step);
     };
 
     frameRef.current = requestAnimationFrame(step);

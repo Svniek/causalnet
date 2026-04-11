@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
 import { TYPES, uid } from "./constants";
 import { apiUrl, apiHeaders, callAPI } from "./api";
 import useForceLayout from "./hooks/useForceLayout";
@@ -60,7 +60,10 @@ export default function App() {
   // Supplementary source additions (without full reanalysis)
   const [supplementSections, setSupplementSections] = useState([]);
 
-  const { positions, posRef } = useForceLayout(nodes, edges, influence, 900, 600);
+  const [netW, setNetW] = useState(900);
+  const [netH, setNetH] = useState(600);
+  const handleNetResize = useCallback((w, h) => { setNetW(w); setNetH(h); }, []);
+  const { positions, posRef } = useForceLayout(nodes, edges, influence, netW, netH);
 
   const takeScreenshot = async (ref, filename) => {
     if (!ref.current) return;
@@ -476,6 +479,7 @@ export default function App() {
           }}
           supplementSections={supplementSections} addSourceQuick={addSourceQuick}
           screenshotting={screenshotting} takeScreenshot={takeScreenshot}
+          onResize={handleNetResize}
           fullPanelRef={fullPanelRef} networkPanelRef={networkPanelRef} analysisPanelRef={analysisPanelRef} />
       )}
     </div>
