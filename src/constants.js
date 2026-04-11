@@ -9,19 +9,17 @@ export const TYPES = {
 export const uid = () => Math.random().toString(36).slice(2, 8);
 
 export const nodeRadius = (n, influence) => {
-  if (n.type === "maingoal") return 28;
+  if (n.type === "maingoal") return 26;
   const score = influence?.[n.label] ?? 0.4;
-  // Quadratic scaling for visible difference: 84% → 32px, 71% → 26px, 50% → 18px
-  return 10 + score * score * 30;
+  // 50%→14, 70%→20, 85%→28, 95%→34 — clear visual difference
+  return 6 + score * 30;
 };
 
 export const edgeWidth = (corr) => 1 + (corr ?? 0.3) * 8;
 
 export const targetDist = (influence, label, W = 900, H = 600) => {
   const score = Math.max(0.05, influence?.[label] ?? 0.5);
-  // High influence → close to center, low influence → far away
-  // Linear inverse: 90% → 15% of radius, 50% → 55%, 10% → 95%
-  const maxDist = Math.min(W, H) * 0.42;
-  const minDist = Math.min(W, H) * 0.12;
-  return minDist + (1 - score) * (maxDist - minDist);
+  const radius = Math.min(W, H) * 0.4;
+  const minDist = 80;
+  return minDist + (1 - score) * radius;
 };
