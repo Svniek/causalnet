@@ -53,11 +53,10 @@ export default function useForceLayout(nodes, edges, influence, W, H) {
           const dy = pos[a.id].y - pos[b.id].y;
           const d = Math.sqrt(dx * dx + dy * dy) + 0.1;
           const rB = nodeRadius(b, inf);
-          const minSep = rA + rB + 50;
-          // Strong close-range repulsion, mild long-range
+          const minSep = rA + rB + 70;
           const force = d < minSep
-            ? (minSep - d) * 2.5
-            : 3000 / (d * d);
+            ? (minSep - d) * 4
+            : 5000 / (d * d);
           fx += (dx / d) * force;
           fy += (dy / d) * force;
         });

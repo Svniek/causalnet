@@ -19,7 +19,7 @@ export const edgeWidth = (corr) => 1 + (corr ?? 0.3) * 8;
 
 export const targetDist = (influence, label, W = 900, H = 600) => {
   const score = Math.max(0.05, influence?.[label] ?? 0.5);
-  const radius = Math.min(W, H) * 0.4;
-  const minDist = 80;
-  return minDist + (1 - score) * radius;
+  const maxDist = Math.min(W, H) * 0.43;
+  const minDist = Math.min(W, H) * 0.15;
+  return minDist + (1 - score) * (maxDist - minDist);
 };
