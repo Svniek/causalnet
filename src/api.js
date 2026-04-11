@@ -37,6 +37,10 @@ export const callAPI = async (apiKey, messages, system, maxTokens) => {
       throw new Error("Netwerkfout: " + e.message + ". Controleer je internetverbinding.");
     }
 
+    if (res.status === 413) {
+      throw new Error("De PDF bestanden zijn te groot (max ~3 MB totaal). Verwijder enkele bestanden en probeer opnieuw.");
+    }
+
     let data;
     try {
       data = await res.json();

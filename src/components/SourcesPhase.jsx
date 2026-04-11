@@ -25,25 +25,33 @@ export default function SourcesPhase({ uploadedDocs, setUploadedDocs, sourceMode
           <p style={{ color: "#334155", fontSize: 11, margin: "8px 0 0" }}>PDF bestanden toevoegen</p>
         </div>
 
-        {uploadedDocs.length > 0 && (
-          <div style={{ marginBottom: 20 }}>
-            {uploadedDocs.map(doc => (
-              <div key={doc.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between",
-                padding: "8px 12px", background: "rgba(96,165,250,0.08)", border: "1px solid rgba(96,165,250,0.2)",
-                borderRadius: 8, marginBottom: 6 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: 16 }}>{"\ud83d\udcc4"}</span>
-                  <div>
-                    <div style={{ fontSize: 12, color: "#e2e8f0" }}>{doc.name}</div>
-                    <div style={{ fontSize: 10, color: "#475569" }}>{(doc.size / 1024).toFixed(0)} KB</div>
+        {uploadedDocs.length > 0 && (() => {
+          const totalMB = uploadedDocs.reduce((sum, d) => sum + d.size, 0) / (1024 * 1024);
+          const tooLarge = totalMB > 3;
+          return (
+            <div style={{ marginBottom: 20 }}>
+              {uploadedDocs.map(doc => (
+                <div key={doc.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between",
+                  padding: "8px 12px", background: "rgba(96,165,250,0.08)", border: "1px solid rgba(96,165,250,0.2)",
+                  borderRadius: 8, marginBottom: 6 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontSize: 16 }}>{"\ud83d\udcc4"}</span>
+                    <div>
+                      <div style={{ fontSize: 12, color: "#e2e8f0" }}>{doc.name}</div>
+                      <div style={{ fontSize: 10, color: "#475569" }}>{(doc.size / 1024).toFixed(0)} KB</div>
+                    </div>
                   </div>
+                  <button onClick={() => setUploadedDocs(p => p.filter(d => d.id !== doc.id))}
+                    style={{ background: "none", border: "none", color: "#475569", cursor: "pointer", fontSize: 16, padding: 0 }}>&times;</button>
                 </div>
-                <button onClick={() => setUploadedDocs(p => p.filter(d => d.id !== doc.id))}
-                  style={{ background: "none", border: "none", color: "#475569", cursor: "pointer", fontSize: 16, padding: 0 }}>&times;</button>
+              ))}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 8, fontSize: 11 }}>
+                <span style={{ color: "#475569" }}>{uploadedDocs.length} bestand{uploadedDocs.length > 1 ? "en" : ""} &middot; {totalMB.toFixed(1)} MB totaal</span>
+                {tooLarge && <span style={{ color: "#f87171" }}>Let op: grote bestanden kunnen de analyse vertragen of mislukken</span>}
               </div>
-            ))}
-          </div>
-        )}
+            </div>
+          );
+        })()}
 
         {uploadedDocs.length > 0 && (
           <div style={{ marginBottom: 24, padding: 16, background: "rgba(255,255,255,0.025)", borderRadius: 10, border: "1px solid rgba(255,255,255,0.06)" }}>
