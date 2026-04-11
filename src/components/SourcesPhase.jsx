@@ -1,7 +1,7 @@
 export default function SourcesPhase({ uploadedDocs, setUploadedDocs, sourceMode, setSourceMode, dragOver, setDragOver, handleFileDrop, onBack, onContinue }) {
   return (
-    <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: 32, background: "radial-gradient(ellipse at 50% 30%,#0d1a35,#080d1a)" }}>
-      <div style={{ width: "100%", maxWidth: 620, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 18, padding: 36 }}>
+    <div style={{ flex: 1, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: 32, background: "radial-gradient(ellipse at 50% 30%,#0d1a35,#080d1a)", overflowY: "auto" }}>
+      <div style={{ width: "100%", maxWidth: 620, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 18, padding: 36, marginTop: "auto", marginBottom: "auto" }}>
         <div style={{ display: "inline-block", padding: "3px 10px", background: "rgba(96,165,250,0.12)", border: "1px solid rgba(96,165,250,0.25)", borderRadius: 20, color: "#60a5fa", fontSize: 10, marginBottom: 16, letterSpacing: 0.5 }}>Stap 3 van 4 &mdash; Optioneel</div>
         <h2 style={{ fontFamily: "Georgia,serif", fontSize: 22, color: "#f1f5f9", margin: "0 0 8px" }}>Eigen bronnen toevoegen</h2>
         <p style={{ fontSize: 13, color: "#475569", lineHeight: 1.7, margin: "0 0 22px" }}>
