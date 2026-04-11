@@ -203,23 +203,23 @@ export default function Graph({ nodes, edges, positions, selected, onSelect, inf
           <div style={{ marginBottom: 7, color: "#64748b", fontWeight: 600, letterSpacing: 0.5, fontSize: 9, textTransform: "uppercase" }}>Legenda</div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
             <svg width={44} height={8}><line x1={0} y1={4} x2={44} y2={4} stroke="#94a3b8" strokeWidth={1.5} /></svg>
-            <span>zwak verband (r\u22480.1)</span>
+            <span>zwak verband</span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
             <svg width={44} height={14}><line x1={0} y1={7} x2={44} y2={7} stroke="#94a3b8" strokeWidth={8} /></svg>
-            <span>sterk verband (r\u22480.7)</span>
+            <span>sterk verband</span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
             <svg width={44} height={8}><line x1={0} y1={4} x2={44} y2={4} stroke="#64748b" strokeWidth={1.5} strokeDasharray="4 3" /></svg>
-            <span>factor\u2194factor correlatie</span>
+            <span>factor&#x2194;factor correlatie</span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
             <svg width={20} height={20}><circle cx={10} cy={10} r={5} fill="#94a3b8" /></svg>
-            <span>lage invloed \u00b7 ver van doel</span>
+            <span>lage invloed</span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <svg width={20} height={20}><circle cx={10} cy={10} r={10} fill="#94a3b8" /></svg>
-            <span>hoge invloed \u00b7 dicht bij doel</span>
+            <span>hoge invloed</span>
           </div>
         </div>
       )}
