@@ -267,17 +267,22 @@ export default function App() {
     const factorLegend = indexed.map(f => `F${f.idx}="${f.label}"(${f.type})`).join(", ");
 
     const jsonUserMsg =
-      `Fill in scientific values (0.01-0.99) for: ${problem}\n` +
+      `Fill in scientific values for: ${problem}\n` +
       `Factors: ${factorLegend}\n` +
       `Goals: ${goalLegend}\n` +
-      `F{n}_INF=influence on main goal G0, F{n}_G{m}=Pearson r with goal Gm\n\n` +
+      `F{n}_INF=influence on main goal G0 (0.01-0.99), F{n}_G{m}=Pearson r with goal Gm (0.01-0.99 OR null)\n` +
+      `IMPORTANT: Use null for F{n}_G{m} when there is NO scientific evidence for a correlation between that factor and goal. ` +
+      `Only fill in a numeric value when the literature supports a meaningful relationship. ` +
+      `F{n}_INF must always be numeric.\n\n` +
       JSON.stringify(flatSkeleton);
 
     let pw = null;
     try {
       const rawJson = await callAPI(apiKey,
         [{ role: "user", content: jsonUserMsg }],
-        "You are a JSON-only assistant. Output ONLY a valid JSON object. No explanation, no markdown, no backticks. Replace every 0.0 with a float between 0.01 and 0.99.",
+        "You are a JSON-only assistant. Output ONLY a valid JSON object. No explanation, no markdown, no backticks. " +
+        "Replace each 0.0 with either a float (0.01-0.99) when supported by evidence, or null when no scientific evidence exists for that correlation. " +
+        "F{n}_INF values must always be numeric (never null).",
         1200
       );
       const s = rawJson.indexOf("{"), e = rawJson.lastIndexOf("}");
@@ -294,15 +299,21 @@ export default function App() {
     const newEdges = [];
     if (center) {
       indexed.forEach(f => {
-        const v = parseFloat(pw?.[`F${f.idx}_G0`]);
-        const corr = isNaN(v) ? 0.35 : Math.max(0.05, Math.min(0.99, v));
+        const raw = pw?.[`F${f.idx}_G0`];
+        // Skip null — no scientific evidence for this correlation
+        if (raw === null || raw === "null") return;
+        const v = parseFloat(raw);
+        if (isNaN(v)) return;
+        const corr = Math.max(0.05, Math.min(0.99, v));
         newEdges.push({ id: uid(), from: f.id, to: center.id, correlation: corr });
       });
     }
 
     goalNodes.forEach((goalNode, gi) => {
       indexed.filter(f => f.type !== "goal").forEach(f => {
-        const v = parseFloat(pw?.[`F${f.idx}_G${gi + 1}`]);
+        const raw = pw?.[`F${f.idx}_G${gi + 1}`];
+        if (raw === null || raw === "null") return;
+        const v = parseFloat(raw);
         if (isNaN(v) || v < 0.25) return;
         newEdges.push({ id: uid(), from: f.id, to: goalNode.id, correlation: Math.min(0.99, v) });
       });
