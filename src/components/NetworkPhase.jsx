@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { TYPES } from "../constants";
 import Graph from "./Graph";
 import AnalysisTab from "./AnalysisTab";
@@ -15,6 +15,7 @@ export default function NetworkPhase({
   const graphContainerRef = useRef(null);
   const [W, setW] = useState(900);
   const [H, setH] = useState(600);
+  const [corrThreshold, setCorrThreshold] = useState(0.01);
 
   useEffect(() => {
     const update = () => {
@@ -88,7 +89,7 @@ export default function NetworkPhase({
       </aside>
 
       <main style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "auto", minHeight: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", borderBottom: "1px solid rgba(255,255,255,0.05)", padding: "0 14px" }}>
+        <div style={{ display: "flex", alignItems: "center", borderBottom: "1px solid rgba(255,255,255,0.05)", padding: "0 14px", gap: 8 }}>
           <div style={{ display: "flex", flex: 1 }}>
             {["graph", "analysis", "data"].map(t => (
               <button key={t} onClick={() => setTab(t)}
@@ -99,6 +100,20 @@ export default function NetworkPhase({
               </button>
             ))}
           </div>
+          {tab === "graph" && analysed && edges.length > 0 && (() => {
+            const visible = edges.filter(e => (e.correlation ?? 0) >= corrThreshold).length;
+            return (
+              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "0 4px" }}>
+                <span style={{ fontSize: 10, color: "#334155", whiteSpace: "nowrap" }}>r &ge;</span>
+                <input type="range" min="0.01" max="1.00" step="0.01"
+                  value={corrThreshold}
+                  onChange={e => setCorrThreshold(parseFloat(e.target.value))}
+                  style={{ width: 90, accentColor: "#f59e0b", cursor: "pointer" }} />
+                <span style={{ fontSize: 11, color: "#f59e0b", fontWeight: 600, minWidth: 28 }}>{corrThreshold.toFixed(2)}</span>
+                <span style={{ fontSize: 10, color: "#334155", whiteSpace: "nowrap" }}>({visible}/{edges.length})</span>
+              </div>
+            );
+          })()}
           <div style={{ display: "flex", gap: 6, paddingLeft: 12 }}>
             {tab === "graph" && nodes.length > 0 && (
               <>
@@ -131,7 +146,9 @@ export default function NetworkPhase({
             <div ref={graphContainerRef} style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
               {nodes.length === 0
                 ? <div style={{ textAlign: "center" }}><div style={{ fontSize: 44 }}>{"\ud83d\udd78\ufe0f"}</div><p style={{ color: "#334155", fontSize: 13, marginTop: 10 }}>Geen factoren.</p></div>
-                : <Graph nodes={nodes} edges={edges} positions={positions} posRef={posRef} onDragNode={onDragNode}
+                : <Graph nodes={nodes}
+                    edges={analysed ? edges.filter(e => (e.correlation ?? 0) >= corrThreshold) : edges}
+                    positions={positions} posRef={posRef} onDragNode={onDragNode}
                     selected={selected} onSelect={setSelected}
                     influence={influence} W={W} H={H} analysed={analysed} />
               }
