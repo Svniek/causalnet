@@ -31,33 +31,56 @@ export default function useForceLayout(nodes, edges, influence, W, H) {
       nodes.forEach(a => {
         if (a.id === cNode?.id) return;
         let fx = 0, fy = 0;
+        // Repulsion — stronger to keep nodes apart
         nodes.forEach(b => {
           if (a.id === b.id) return;
           const dx = pos[a.id].x - pos[b.id].x, dy = pos[a.id].y - pos[b.id].y;
           const d2 = dx * dx + dy * dy + 1, d = Math.sqrt(d2);
           const rA = nodeRadius(a, inf), rB = nodeRadius(b, inf);
-          const minSep = rA + rB + 40;
-          const strength = d < minSep ? 18000 / (d2 + 1) : 6000 / (d2 + 1);
+          const minSep = rA + rB + 60;
+          const strength = d < minSep ? 25000 / (d2 + 1) : 8000 / (d2 + 1);
           fx += (dx / d) * strength * alpha; fy += (dy / d) * strength * alpha;
         });
+        // Spring to influence-based target distance from center
         if (cNode && pos[cNode.id]) {
           const dx = pos[cNode.id].x - pos[a.id].x;
           const dy = pos[cNode.id].y - pos[a.id].y;
           const d = Math.sqrt(dx * dx + dy * dy) + 0.01;
           const tgt = targetDist(inf, a.label, W, H);
-          const f = ((d - tgt) / d) * 0.12 * alpha;
+          const f = ((d - tgt) / d) * 0.18 * alpha;
           fx += dx * f; fy += dy * f;
         }
-        fx += (W / 2 - pos[a.id].x) * 0.006 * alpha;
-        fy += (H / 2 - pos[a.id].y) * 0.006 * alpha;
-        vel[a.id].x = (vel[a.id].x + fx) * 0.68;
-        vel[a.id].y = (vel[a.id].y + fy) * 0.68;
+        // Angular spread — push nodes apart angularly around center
+        if (cNode && pos[cNode.id]) {
+          const cx = pos[cNode.id].x, cy = pos[cNode.id].y;
+          nodes.forEach(b => {
+            if (b.id === a.id || b.id === cNode.id) return;
+            const ax = pos[a.id].x - cx, ay = pos[a.id].y - cy;
+            const bx = pos[b.id].x - cx, by = pos[b.id].y - cy;
+            const cross = ax * by - ay * bx;
+            const dot = ax * bx + ay * by;
+            const angle = Math.abs(Math.atan2(cross, dot));
+            if (angle < 0.4) {
+              const push = (0.4 - angle) * 800 * alpha;
+              const sign = cross >= 0 ? 1 : -1;
+              const da = Math.sqrt(ax * ax + ay * ay) + 0.01;
+              fx += (-ay / da) * push * sign;
+              fy += (ax / da) * push * sign;
+            }
+          });
+        }
+        // Gentle center gravity
+        fx += (W / 2 - pos[a.id].x) * 0.004 * alpha;
+        fy += (H / 2 - pos[a.id].y) * 0.004 * alpha;
+        vel[a.id].x = (vel[a.id].x + fx) * 0.65;
+        vel[a.id].y = (vel[a.id].y + fy) * 0.65;
         const rA = nodeRadius(a, inf);
-        pos[a.id].x = Math.max(rA + 8, Math.min(W - rA - 8, pos[a.id].x + vel[a.id].x));
-        pos[a.id].y = Math.max(rA + 8, Math.min(H - rA - 8, pos[a.id].y + vel[a.id].y));
+        const pad = rA + 20;
+        pos[a.id].x = Math.max(pad, Math.min(W - pad, pos[a.id].x + vel[a.id].x));
+        pos[a.id].y = Math.max(pad, Math.min(H - pad, pos[a.id].y + vel[a.id].y));
       });
       setTick(t => t + 1);
-      if (iterRef.current < 400) frameRef.current = requestAnimationFrame(step);
+      if (iterRef.current < 500) frameRef.current = requestAnimationFrame(step);
     };
     frameRef.current = requestAnimationFrame(step);
     return () => cancelAnimationFrame(frameRef.current);
