@@ -5,11 +5,7 @@ export default function ProblemPhase({ problem, setProblem, apiKey, sugLoading, 
         <div style={{ display: "inline-block", padding: "3px 10px", background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: 20, color: "#f59e0b", fontSize: 10, marginBottom: 16 }}>Stap 1 van 3</div>
         <h1 style={{ fontFamily: "Georgia,serif", fontSize: 24, color: "#f1f5f9", margin: "0 0 10px" }}>Wat is je onderwerp of probleemstelling?</h1>
         <p style={{ fontSize: 13, color: "#475569", lineHeight: 1.7, margin: "0 0 18px" }}>Claude genereert wetenschappelijk onderbouwde factoren en berekent na analyse de correlatiesterktes en invloeden &mdash; zichtbaar in de dikte van de lijnen en de grootte van de bollen.</p>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 16 }}>
-          {["Schooluitval bij jongeren met ADHD", "Burnout preventie op de werkvloer", "Eenzaamheid bij ouderen", "Depressie bij adolescenten"].map(ex => (
-            <button key={ex} onClick={() => setProblem(ex)} style={{ padding: "5px 12px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 20, color: "#64748b", fontSize: 11, cursor: "pointer" }}>{ex}</button>
-          ))}
-        </div>
+
         <textarea value={problem} onChange={e => setProblem(e.target.value)}
           onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onGenerate(); } }}
           placeholder="Bijv. 'Schooluitval bij jongeren met ADHD'..." rows={3}
