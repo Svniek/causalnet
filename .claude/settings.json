@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run build*)",
+      "Bash(git add docs/*)",
+      "Bash(git add src/*)",
+      "Bash(git add api/*)",
+      "Bash(git add server.js)",
+      "Bash(git commit*)",
+      "Bash(git push)",
+      "Bash(mkdir -p *)"
+    ]
+  }
+}
