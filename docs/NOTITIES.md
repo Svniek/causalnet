@@ -105,6 +105,53 @@ Het risico zit in dat laatste: als er geen paper gevonden wordt én de eigen ken
 
 ---
 
+### Hoe billing werkt en wat het kost (2026-04-17)
+
+#### Twee scenario's
+
+**Scenario A — Eigen API-sleutel (rechtsboven invoeren)**
+De gebruiker betaalt rechtstreeks aan Anthropic. Kosten zijn zichtbaar op [console.anthropic.com](https://console.anthropic.com) → Usage.
+
+**Scenario B — Via Vercel (geen sleutel invoeren)**
+De API-sleutel staat op de server (Vercel environment variable). De eigenaar van het Vercel-project betaalt.
+
+#### Welke modellen worden gebruikt
+
+| Model | Wanneer |
+|-------|---------|
+| `claude-sonnet-4-20250514` | Altijd eerst geprobeerd |
+| `claude-haiku-4-5-20251001` | Fallback als Sonnet overbelast is |
+
+#### Kosten per analyse
+
+Elke analyse doet **2 Claude-aanroepen**:
+
+| Aanroep | Doel | Geschatte tokens |
+|---------|------|-----------------|
+| 1 | Rapport schrijven | ~8.000–25.000 input + ~2.800 output |
+| 2 | Correlatiematrix | ~500 input + ~1.200 output |
+
+**Prijzen Anthropic (per miljoen tokens):**
+
+| Model | Input | Output |
+|-------|-------|--------|
+| Claude Sonnet 4 | $3,00 | $15,00 |
+| Claude Haiku 4.5 | $0,80 | $4,00 |
+
+#### Geschatte kosten
+
+| Situatie | Kosten per analyse |
+|----------|--------------------|
+| Sonnet, met eigen bronnen | ~$0,10 (€0,09) |
+| Sonnet, zonder bronnen | ~$0,03–0,05 |
+| Haiku (fallback) | ~75% goedkoper, minder nauwkeurig |
+
+**Bij normaal gebruik (5–10 analyses/dag):** $0,50–$1,00 per dag.
+
+> Dit is actiepunt 1 uit de vergadering van 17-4-2026 (Stephan).
+
+---
+
 ## Ontwerpkeuzes
 
 ### Null-correlaties bij ontbrekend bewijs (2026-04-17)

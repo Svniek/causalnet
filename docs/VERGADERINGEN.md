@@ -24,7 +24,7 @@ Overzicht van besprekingen, afspraken en actiepunten per overleg.
 
 | # | Actie | Wie |
 |---|-------|-----|
-| 1 | Uitzoeken hoe de billing werkt en hoeveel het kost | Stephan |
+| 1 | ~~Uitzoeken hoe de billing werkt en hoeveel het kost~~ ✅ → zie [Notities](NOTITIES.md#hoe-billing-werkt-en-wat-het-kost-2026-04-17) | Stephan |
 | 2 | Consistentie uitkomsten onderzoeken | FD |
 | 3 | Falsificatie van het model onderzoeken | Allen |
 
