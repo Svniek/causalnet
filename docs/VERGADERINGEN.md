@@ -17,11 +17,16 @@ Overzicht van besprekingen, afspraken en actiepunten per overleg.
 
 ### Besproken punten
 
-*(nog aan te vullen)*
+1. Experimenteren met het model
+2. Wie doet wat en wanneer
 
 ### Afspraken / actiepunten
 
-*(nog aan te vullen)*
+| # | Actie | Wie |
+|---|-------|-----|
+| 1 | Uitzoeken hoe de billing werkt en hoeveel het kost | Stephan |
+| 2 | Consistentie uitkomsten onderzoeken | FD |
+| 3 | Falsificatie van het model onderzoeken | Allen |
 
 ---
 
