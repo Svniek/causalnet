@@ -137,6 +137,56 @@ export default function App() {
     setUploadedDocs(prev => [...prev, doc]);
   };
 
+  // ── Save / Load ──────────────────────────────────────────────────────────
+  const saveAnalysis = () => {
+    const data = {
+      version: "1.0",
+      savedAt: new Date().toISOString(),
+      problem,
+      nodes,
+      edges,
+      influence,
+      report,
+      analysed,
+      positions: posRef.current,
+      supplementSections,
+      uploadedDocs: uploadedDocs.map(d => ({ id: d.id, name: d.name, size: d.size, url: d.url || null, text: d.text })),
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const slug = problem.slice(0, 40).replace(/[^a-z0-9]/gi, "_").toLowerCase();
+    a.href = url;
+    a.download = `causalnet_${slug}_${new Date().toISOString().slice(0, 10)}.causalnet`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const loadAnalysis = (file) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = JSON.parse(e.target.result);
+        if (!data.nodes || !data.problem) throw new Error("Ongeldig bestand");
+        setProblem(data.problem || "");
+        setNodes(data.nodes || []);
+        setEdges(data.edges || []);
+        setInfluence(data.influence || null);
+        setReport(data.report || "");
+        setAnalysed(data.analysed || false);
+        setSupplementSections(data.supplementSections || []);
+        setUploadedDocs(data.uploadedDocs || []);
+        if (data.positions) posRef.current = data.positions;
+        setTab("graph");
+        setPhase("network");
+      } catch (err) {
+        alert("Laden mislukt: " + err.message);
+      }
+    };
+    reader.readAsText(file);
+  };
+
   const addNode = () => {
     if (!newLabel.trim()) return;
     setNodes(p => [...p, { id: uid(), label: newLabel.trim(), type: newType }]);
@@ -427,7 +477,8 @@ export default function App() {
       <ScreenshotModal screenshot={screenshot} onClose={() => setScreenshot(null)} />
 
       <Header phase={phase} problem={problem} uploadedDocs={uploadedDocs} analysed={analysed}
-        apiKey={apiKey} setApiKey={setApiKey} onReset={resetAll} />
+        apiKey={apiKey} setApiKey={setApiKey} onReset={resetAll}
+        onSave={saveAnalysis} onLoad={loadAnalysis} />
 
       {phase === "problem" && (
         <ProblemPhase problem={problem} setProblem={setProblem} apiKey={apiKey}

@@ -1,8 +1,9 @@
 import { useState } from "react";
 
-export default function Header({ phase, problem, uploadedDocs, analysed, apiKey, setApiKey, onReset }) {
+export default function Header({ phase, problem, uploadedDocs, analysed, apiKey, setApiKey, onReset, onSave, onLoad }) {
   const [showApiKey, setShowApiKey] = useState(false);
   const [showKeyInput, setShowKeyInput] = useState(false);
+  const loadInputRef = useState(() => typeof document !== "undefined" ? document.createElement("input") : null)[0];
 
   const lsSet = (key, val) => { try { localStorage.setItem(key, val); } catch {} };
   const lsRemove = (key) => { try { localStorage.removeItem(key); } catch {} };
@@ -20,6 +21,29 @@ export default function Header({ phase, problem, uploadedDocs, analysed, apiKey,
         {phase !== "problem" && problem && <span style={{ fontSize: 11, color: "#334155", maxWidth: 260, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{"\ud83d\udccc"} {problem}</span>}
         {uploadedDocs.length > 0 && <span style={{ fontSize: 10, padding: "2px 8px", background: "rgba(96,165,250,0.1)", border: "1px solid rgba(96,165,250,0.25)", borderRadius: 10, color: "#60a5fa" }}>{"\ud83d\udcc4"} {uploadedDocs.length} doc{uploadedDocs.length > 1 ? "s" : ""}</span>}
         {analysed && <span style={{ fontSize: 10, padding: "2px 8px", background: "rgba(52,211,153,0.1)", border: "1px solid rgba(52,211,153,0.2)", borderRadius: 10, color: "#34d399" }}>{"\u25cf"} Gewogen netwerk</span>}
+        {/* Load button — always visible */}
+        <button title="Analyse laden (.causalnet bestand)"
+          onClick={() => {
+            if (loadInputRef) {
+              loadInputRef.type = "file";
+              loadInputRef.accept = ".causalnet,.json";
+              loadInputRef.onchange = (e) => { onLoad(e.target.files[0]); loadInputRef.value = ""; };
+              loadInputRef.click();
+            }
+          }}
+          style={{ padding: "5px 10px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 7, color: "#475569", fontSize: 11, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
+          📂 Laden
+        </button>
+
+        {/* Save button — only when there is an analysis */}
+        {analysed && (
+          <button title="Analyse opslaan als .causalnet bestand"
+            onClick={onSave}
+            style={{ padding: "5px 10px", background: "rgba(52,211,153,0.08)", border: "1px solid rgba(52,211,153,0.25)", borderRadius: 7, color: "#34d399", fontSize: 11, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
+            💾 Opslaan
+          </button>
+        )}
+
         {phase !== "problem" && <button onClick={onReset} style={{ padding: "5px 12px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 7, color: "#475569", fontSize: 11, cursor: "pointer" }}>&larr; Nieuw onderwerp</button>}
 
         <div style={{ position: "relative" }}>
