@@ -8,7 +8,11 @@ Bedoeld om te delen met collega's in overleg.
 ## Inhoud
 
 1. [Concepten](#concepten)
+   - [Verschil tussen correlatiesterkte en invloed](#verschil-tussen-correlatiesterkte-en-invloed-2026-04-17)
+   - [Wat er gebeurt als je op AI Analyse klikt](#wat-er-gebeurt-als-je-op-ai-analyse-klikt-2026-04-17)
+   - [Wat betekent "eigen wetenschappelijke kennis van het model"?](#wat-betekent-eigen-wetenschappelijke-kennis-van-het-model-2026-04-17)
 2. [Ontwerpkeuzes](#ontwerpkeuzes)
+   - [Null-correlaties bij ontbrekend bewijs](#null-correlaties-bij-ontbrekend-bewijs-2026-04-17)
 
 ---
 
@@ -74,6 +78,8 @@ Dit is bewust een aparte aanroep: het model is dan uitsluitend gefocust op getal
 | 2 | claude-sonnet | Correlatiematrix vullen |
 | Semantic Scholar | — | Echte papers vinden |
 | CrossRef | — | DOI-links verifiëren |
+
+---
 
 ### Wat betekent "eigen wetenschappelijke kennis van het model"? (2026-04-17)
 
