@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from "react";
 import { TYPES, uid } from "./constants";
 import { apiUrl, apiHeaders, callAPI } from "./api";
+import { runSolutionAnalysis } from "./utils/solutionAnalysis";
 import useForceLayout from "./hooks/useForceLayout";
 import { extractSourcesFromReport, readFile, fetchUrl } from "./utils/sources";
 import { verifyDoiLinks } from "./utils/verifyDoi";
@@ -46,6 +47,9 @@ export default function App() {
   const [uploadedDocs, setUploadedDocs] = useState([]);
   const [sourceMode, setSourceMode] = useState("both");
   const [dragOver, setDragOver] = useState(false);
+
+  const [subAnalyses, setSubAnalyses] = useState([]);
+  const [activeMainTab, setActiveMainTab] = useState("main");
 
   const [reanalyseStep, setReanalyseStep] = useState(1);
   const [reanalyseSources, setReanalyseSources] = useState([]);
@@ -462,12 +466,48 @@ export default function App() {
     setSupplementSections(prev => [...prev, { source: sourceText, text }]);
   };
 
+  const startSolutionAnalysis = async (node) => {
+    const id = `sol_${uid()}`;
+    const newSub = {
+      id, factorId: node.id, factorLabel: node.label, factorType: node.type,
+      nodes: [], edges: [], influence: {}, report: "", analysed: false,
+      steps: [], error: null, merged: false, subVisible: true
+    };
+    setSubAnalyses(prev => [...prev, newSub]);
+    setActiveMainTab(id);
+
+    const updateSub = upd => setSubAnalyses(prev => prev.map(s => s.id === id ? { ...s, ...upd } : s));
+    const addSubStep = txt => setSubAnalyses(prev => prev.map(s => s.id === id
+      ? { ...s, steps: [...s.steps, { id: uid(), txt, done: false }] } : s));
+    const doneSubStep = () => setSubAnalyses(prev => prev.map(s => s.id === id
+      ? { ...s, steps: s.steps.map((st, i) => i === s.steps.length - 1 ? { ...st, done: true } : st) } : s));
+    const updateSubStep = msg => setSubAnalyses(prev => prev.map(s => s.id === id
+      ? { ...s, steps: s.steps.map((st, i) => i === s.steps.length - 1 ? { ...st, txt: msg } : st) } : s));
+
+    try {
+      const result = await runSolutionAnalysis({
+        factor: node, problem, apiKey,
+        onStep: addSubStep, onStepDone: doneSubStep, onStepUpdate: updateSubStep
+      });
+      updateSub({ ...result, analysed: true });
+    } catch (e) {
+      updateSub({ error: e.message });
+    }
+  };
+
+  const toggleSubMerge = (id) => setSubAnalyses(prev => prev.map(s => s.id === id ? { ...s, merged: !s.merged } : s));
+  const toggleSubVisible = (id) => setSubAnalyses(prev => prev.map(s => s.id === id ? { ...s, subVisible: !s.subVisible } : s));
+  const closeSubAnalysis = (id) => {
+    setSubAnalyses(prev => prev.filter(s => s.id !== id));
+    if (activeMainTab === id) setActiveMainTab("main");
+  };
+
   const resetAll = () => {
     setPhase("problem"); setNodes([]); setEdges([]); setReport(""); setSteps([]);
     setSuggestions({}); setChecked({}); setProblem(""); setInfluence(null); setAnalysed(false);
     setUploadedDocs([]); setSourceMode("both"); setShowRaw(false);
     setScreenshot(null); setReanalyseSources([]); setReanalyseNodes([]); setReanalyseStep(1);
-    setSupplementSections([]);
+    setSupplementSections([]); setSubAnalyses([]); setActiveMainTab("main");
   };
 
   return (
@@ -548,7 +588,10 @@ export default function App() {
           supplementSections={supplementSections} addSourceQuick={addSourceQuick}
           screenshotting={screenshotting} takeScreenshot={takeScreenshot}
           onResize={handleNetResize}
-          fullPanelRef={fullPanelRef} networkPanelRef={networkPanelRef} analysisPanelRef={analysisPanelRef} />
+          fullPanelRef={fullPanelRef} networkPanelRef={networkPanelRef} analysisPanelRef={analysisPanelRef}
+          subAnalyses={subAnalyses} activeMainTab={activeMainTab} setActiveMainTab={setActiveMainTab}
+          onSolutionAnalyse={startSolutionAnalysis}
+          onMergeToggle={toggleSubMerge} onVisibleToggle={toggleSubVisible} onCloseSubTab={closeSubAnalysis} />
       )}
     </div>
   );

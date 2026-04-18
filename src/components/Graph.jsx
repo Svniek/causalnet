@@ -1,11 +1,21 @@
-import { useState, useRef, useCallback } from "react";
-import { TYPES, nodeRadius, edgeWidth } from "../constants";
+import { useState, useRef, useCallback, useEffect } from "react";
+import { TYPES, SOLUTION_TYPES, nodeRadius, edgeWidth } from "../constants";
 
-const TYPE_ENTRIES = Object.entries(TYPES); // [key, {label, color}]
+const TYPE_ENTRIES = Object.entries(TYPES); // [key, {label, color}] — original types only for legend
+const ALL_TYPES = { ...TYPES, ...SOLUTION_TYPES };
 
-export default function Graph({ nodes, edges, positions, selected, onSelect, influence, W, H, analysed, posRef, onDragNode }) {
+export default function Graph({ nodes, edges, positions, selected, onSelect, influence, W, H, analysed, posRef, onDragNode, subNetworks, onSolutionAnalyse }) {
   const [tooltip, setTooltip] = useState(null);
   const [hiddenTypes, setHiddenTypes] = useState(new Set());
+  const [contextMenu, setContextMenu] = useState(null); // { nodeId, screenX, screenY, label, type }
+  const [hoverNodeId, setHoverNodeId] = useState(null);
+
+  // Close context menu on Escape
+  useEffect(() => {
+    const handler = (e) => { if (e.key === "Escape") setContextMenu(null); };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
   const toggleType = (key) => setHiddenTypes(prev => {
     const next = new Set(prev);
@@ -82,7 +92,7 @@ export default function Graph({ nodes, edges, positions, selected, onSelect, inf
           const toIsMaingoal = toNode?.type === "maingoal";
           const toIsGoal = toNode?.type === "goal";
           const isInterFactor = !toIsMaingoal && !toIsGoal;
-          const col = isInterFactor ? "#64748b" : TYPES[fromNode?.type]?.color || "#888";
+          const col = isInterFactor ? "#64748b" : ALL_TYPES[fromNode?.type]?.color || "#888";
           const rFrom = nodeRadius(fromNode || { type: "risk", label: "" }, influence);
           const dx = tp.x - fp.x, dy = tp.y - fp.y, d = Math.sqrt(dx * dx + dy * dy) || 1;
           const sx = fp.x + (dx / d) * rFrom, sy = fp.y + (dy / d) * rFrom;
@@ -121,16 +131,26 @@ export default function Graph({ nodes, edges, positions, selected, onSelect, inf
 
         {visibleNodes.map(n => {
           const p = positions[n.id]; if (!p) return null;
-          const t = TYPES[n.type];
+          const t = ALL_TYPES[n.type] || { color: "#64748b", label: n.type };
           const r = nodeRadius(n, influence);
           const isSel = selected === n.id;
           const inf = influence?.[n.label];
           return (
             <g key={n.id}
               onMouseDown={e => handleMouseDown(e, n.id)}
-              onClick={() => { if (!didDragRef.current) onSelect(isSel ? null : n.id); }}
-              onMouseEnter={ev => setTooltip({ x: ev.clientX, y: ev.clientY, text: n.label + (inf != null ? " \u00b7 invloed: " + (inf * 100).toFixed(0) + "%" : "") })}
-              onMouseLeave={() => setTooltip(null)}
+              onClick={e => {
+                if (!didDragRef.current) {
+                  onSelect(isSel ? null : n.id);
+                  if (analysed && onSolutionAnalyse) {
+                    setContextMenu({ nodeId: n.id, screenX: e.clientX + 8, screenY: e.clientY + 8, label: n.label, type: n.type });
+                  }
+                }
+              }}
+              onMouseEnter={ev => {
+                setTooltip({ x: ev.clientX, y: ev.clientY, text: n.label + (inf != null ? " \u00b7 invloed: " + (inf * 100).toFixed(0) + "%" : "") });
+                setHoverNodeId(n.id);
+              }}
+              onMouseLeave={() => { setTooltip(null); setHoverNodeId(null); }}
               style={{ cursor: dragRef.current ? "grabbing" : "grab" }}>
               <circle cx={p.x} cy={p.y} r={r + 14} fill={t.color} opacity={isSel ? 0.22 : inf > 0.7 ? 0.14 : 0.05} />
               {inf > 0.7 && <circle cx={p.x} cy={p.y} r={r + 7} fill={t.color} opacity={0.08} />}
@@ -186,7 +206,133 @@ export default function Graph({ nodes, edges, positions, selected, onSelect, inf
             </g>
           );
         })}
+
+        {/* Sub-networks (merged solutions) */}
+        {(subNetworks || []).map(subNet => {
+          const parentPos = positions[subNet.factorId];
+          if (!parentPos || !subNet.nodes || subNet.nodes.length === 0) return null;
+          const count = subNet.nodes.length;
+          const isHovering = hoverNodeId === subNet.factorId;
+          const baseOpacity = subNet.visible ? 1 : (isHovering ? 0.5 : 0);
+          if (!subNet.visible && !isHovering) return null;
+
+          return (
+            <g key={subNet.factorId} style={{ transition: "opacity 0.2s" }} opacity={baseOpacity}>
+              {/* Sub-node positions computed as ring around parent */}
+              {subNet.nodes.map((sn, i) => {
+                const angle = (i / count) * 2 * Math.PI - Math.PI / 2;
+                const ringR = 110;
+                const sx = parentPos.x + ringR * Math.cos(angle);
+                const sy = parentPos.y + ringR * Math.sin(angle);
+                const snInf = subNet.influence?.[sn.label] ?? 0.5;
+                const snCol = ALL_TYPES[sn.type]?.color || "#64748b";
+                const snR = 6 + snInf * 14;
+
+                const snWords = sn.label.split(" ");
+                const snLines = [];
+                let snCur = "";
+                snWords.forEach(w => {
+                  if ((snCur + " " + w).trim().length <= 12) {
+                    snCur = (snCur + " " + w).trim();
+                  } else {
+                    if (snCur) snLines.push(snCur);
+                    snCur = w;
+                  }
+                });
+                if (snCur) snLines.push(snCur);
+
+                // Edge from sub-node to parent
+                const dx = parentPos.x - sx, dy = parentPos.y - sy;
+                const d = Math.sqrt(dx * dx + dy * dy) || 1;
+
+                return (
+                  <g key={sn.id}>
+                    {/* Edge to parent */}
+                    <line
+                      x1={sx} y1={sy}
+                      x2={parentPos.x - (dx / d) * 20}
+                      y2={parentPos.y - (dy / d) * 20}
+                      stroke={snCol} strokeWidth={1} strokeOpacity={0.4} strokeDasharray="4 3"
+                    />
+                    {/* Node */}
+                    <circle cx={sx} cy={sy} r={snR} fill={snCol} fillOpacity={0.85} stroke="rgba(255,255,255,0.2)" strokeWidth={1} />
+                    <text textAnchor="middle" fontFamily="sans-serif" fontSize={8} fill="#e2e8f0" style={{ pointerEvents: "none", userSelect: "none" }}>
+                      {snLines.map((l, li) => (
+                        <tspan key={li} x={sx} y={sy + snR + 10 + li * 10}>{l}</tspan>
+                      ))}
+                    </text>
+                  </g>
+                );
+              })}
+              {/* Inter-solution edges */}
+              {(subNet.edges || []).map(se => {
+                const fromNode = subNet.nodes.find(n => n.id === se.from);
+                const toNode = subNet.nodes.find(n => n.id === se.to);
+                if (!fromNode || !toNode) return null;
+                const fi = subNet.nodes.indexOf(fromNode);
+                const ti = subNet.nodes.indexOf(toNode);
+                const angleF = (fi / count) * 2 * Math.PI - Math.PI / 2;
+                const angleT = (ti / count) * 2 * Math.PI - Math.PI / 2;
+                const ringR = 110;
+                const fx = parentPos.x + ringR * Math.cos(angleF);
+                const fy = parentPos.y + ringR * Math.sin(angleF);
+                const tx = parentPos.x + ringR * Math.cos(angleT);
+                const ty = parentPos.y + ringR * Math.sin(angleT);
+                const col = ALL_TYPES[fromNode.type]?.color || "#64748b";
+                return (
+                  <line key={se.id} x1={fx} y1={fy} x2={tx} y2={ty}
+                    stroke={col} strokeWidth={0.8} strokeOpacity={0.3} strokeDasharray="3 3" />
+                );
+              })}
+            </g>
+          );
+        })}
       </svg>
+
+      {/* Click outside to close context menu (render first, lower z-index) */}
+      {contextMenu && (
+        <div
+          onClick={() => setContextMenu(null)}
+          style={{ position: "fixed", inset: 0, zIndex: 999 }}
+        />
+      )}
+
+      {/* Context menu (render on top) */}
+      {contextMenu && (
+        <div
+          onClick={e => e.stopPropagation()}
+          style={{
+            position: "fixed", left: contextMenu.screenX, top: contextMenu.screenY,
+            background: "#0f172a", border: "1px solid rgba(245,158,11,0.25)", borderRadius: 10,
+            padding: "10px 0", zIndex: 1000, minWidth: 220, boxShadow: "0 8px 30px rgba(0,0,0,0.5)"
+          }}
+        >
+          <div style={{ padding: "4px 14px 10px", borderBottom: "1px solid rgba(255,255,255,0.06)", marginBottom: 4 }}>
+            <div style={{ fontSize: 12, color: "#e2e8f0", fontWeight: 600 }}>{contextMenu.label}</div>
+            <div style={{ fontSize: 10, color: "#475569", marginTop: 2 }}>{ALL_TYPES[contextMenu.type]?.label || contextMenu.type}</div>
+          </div>
+          <button
+            onClick={() => { onSolutionAnalyse(contextMenu.nodeId); setContextMenu(null); }}
+            style={{
+              display: "block", width: "100%", textAlign: "left", padding: "9px 14px",
+              background: "none", border: "none", cursor: "pointer", fontSize: 12,
+              color: "#f59e0b", fontWeight: 600,
+              backgroundImage: "linear-gradient(90deg, rgba(245,158,11,0.08) 0%, transparent 100%)"
+            }}
+          >
+            🔍 Analyseer oplossingen
+          </button>
+          <button
+            onClick={() => setContextMenu(null)}
+            style={{
+              position: "absolute", top: 6, right: 8, background: "none", border: "none",
+              color: "#475569", cursor: "pointer", fontSize: 16, padding: 0, lineHeight: 1
+            }}
+          >
+            ×
+          </button>
+        </div>
+      )}
 
       {tooltip && (
         <div style={{ position: "fixed", left: tooltip.x + 12, top: tooltip.y - 8,

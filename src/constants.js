@@ -1,3 +1,10 @@
+export const SOLUTION_TYPES = {
+  interventie: { label: "Interventie",        color: "#10b981" },
+  beleid:      { label: "Beleidsmaatregel",   color: "#8b5cf6" },
+  omgeving:    { label: "Omgevingsfactor",    color: "#f97316" },
+  gedrag:      { label: "Gedragsverandering", color: "#06b6d4" },
+};
+
 export const TYPES = {
   maingoal:   { label: "Hoofddoel",           color: "#f59e0b" },
   goal:       { label: "Doel",                color: "#34d399" },

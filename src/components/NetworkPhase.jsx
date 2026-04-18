@@ -3,6 +3,7 @@ import { TYPES } from "../constants";
 import Graph from "./Graph";
 import AnalysisTab from "./AnalysisTab";
 import DataTab from "./DataTab";
+import SolutionTabPanel from "./SolutionTabPanel";
 
 export default function NetworkPhase({
   nodes, edges, positions, posRef, onDragNode, selected, setSelected, influence, analysed,
@@ -10,7 +11,8 @@ export default function NetworkPhase({
   tab, setTab, steps, anaLoading, anaError, report, showRaw, setShowRaw,
   problem, onAnalyze, onReanalyse, supplementSections, addSourceQuick,
   screenshotting, takeScreenshot, onResize,
-  fullPanelRef, networkPanelRef, analysisPanelRef
+  fullPanelRef, networkPanelRef, analysisPanelRef,
+  subAnalyses, activeMainTab, setActiveMainTab, onSolutionAnalyse, onMergeToggle, onVisibleToggle, onCloseSubTab
 }) {
   const graphContainerRef = useRef(null);
   const [W, setW] = useState(900);
@@ -110,14 +112,43 @@ export default function NetworkPhase({
 
       <main style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "auto", minHeight: 0 }}>
         <div style={{ display: "flex", alignItems: "center", borderBottom: "1px solid rgba(255,255,255,0.05)", padding: "0 14px", gap: 8 }}>
-          <div style={{ display: "flex", flex: 1 }}>
+          <div style={{ display: "flex", flex: 1, overflowX: "auto", alignItems: "center" }}>
             {["graph", "analysis", "data"].map(t => (
-              <button key={t} onClick={() => setTab(t)}
+              <button key={t} onClick={() => { setTab(t); setActiveMainTab?.("main"); }}
                 style={{ padding: "11px 16px", background: "none", border: "none",
-                  borderBottom: "2px solid " + (tab === t ? "#f59e0b" : "transparent"),
-                  color: tab === t ? "#f59e0b" : "#334155", fontSize: 12, cursor: "pointer", marginBottom: -1 }}>
+                  borderBottom: "2px solid " + (activeMainTab === "main" && tab === t ? "#f59e0b" : "transparent"),
+                  color: activeMainTab === "main" && tab === t ? "#f59e0b" : "#334155", fontSize: 12, cursor: "pointer", marginBottom: -1, flexShrink: 0 }}>
                 {t === "graph" ? "\ud83d\udd78 Netwerk" : t === "analysis" ? "\ud83d\udccb Analyse" : "\ud83d\udcca Data export"}
               </button>
+            ))}
+            {subAnalyses && subAnalyses.length > 0 && (
+              <span style={{ color: "#1e293b", padding: "0 8px", fontSize: 14, flexShrink: 0 }}>|</span>
+            )}
+            {(subAnalyses || []).map(sub => (
+              <div key={sub.id} style={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
+                <button
+                  onClick={() => setActiveMainTab?.(sub.id)}
+                  style={{
+                    padding: "11px 12px", background: "none", border: "none",
+                    borderBottom: "2px solid " + (activeMainTab === sub.id ? "#f59e0b" : "transparent"),
+                    color: activeMainTab === sub.id ? "#f59e0b" : "#475569",
+                    fontSize: 11, cursor: "pointer", marginBottom: -1, whiteSpace: "nowrap",
+                    maxWidth: 140, overflow: "hidden", textOverflow: "ellipsis"
+                  }}
+                >
+                  🔍 {sub.factorLabel}
+                </button>
+                <button
+                  onClick={() => onCloseSubTab?.(sub.id)}
+                  style={{
+                    padding: "2px 4px", background: "none", border: "none",
+                    color: "#334155", cursor: "pointer", fontSize: 13, marginLeft: -6, flexShrink: 0
+                  }}
+                  title="Sluiten"
+                >
+                  ×
+                </button>
+              </div>
             ))}
           </div>
           {tab === "graph" && analysed && edges.length > 0 && (() => {
@@ -161,6 +192,24 @@ export default function NetworkPhase({
         </div>
 
         <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
+          {/* Solution tab panel — shown when a sub-analysis is active */}
+          {activeMainTab && activeMainTab !== "main" ? (() => {
+            const activeSub = (subAnalyses || []).find(s => s.id === activeMainTab);
+            if (!activeSub) return null;
+            return (
+              <div style={{ position: "absolute", inset: 0, zIndex: 2, background: "#080d1a" }}>
+                <SolutionTabPanel
+                  sub={activeSub}
+                  problem={problem}
+                  apiKey={undefined}
+                  onMergeToggle={() => onMergeToggle?.(activeSub.id)}
+                  onVisibleToggle={() => onVisibleToggle?.(activeSub.id)}
+                  onClose={() => onCloseSubTab?.(activeSub.id)}
+                />
+              </div>
+            );
+          })() : null}
+
           {/* Network graph — always rendered for PDF capture */}
           <div ref={networkPanelRef} style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "radial-gradient(ellipse at center,#0d1630,#080d1a)" }}>
             <div ref={graphContainerRef} style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -172,13 +221,22 @@ export default function NetworkPhase({
                       .filter(e => !hiddenNodes.has(e.from) && !hiddenNodes.has(e.to))}
                     positions={positions} posRef={posRef} onDragNode={onDragNode}
                     selected={selected} onSelect={setSelected}
-                    influence={influence} W={W} H={H} analysed={analysed} />
+                    influence={influence} W={W} H={H} analysed={analysed}
+                    subNetworks={(subAnalyses || []).filter(s => s.merged).map(s => ({
+                      factorId: s.factorId, nodes: s.nodes, edges: s.edges,
+                      influence: s.influence, visible: s.subVisible
+                    }))}
+                    onSolutionAnalyse={onSolutionAnalyse ? (nodeId) => {
+                      const node = nodes.find(n => n.id === nodeId);
+                      if (node) onSolutionAnalyse(node);
+                    } : undefined}
+                  />
               }
             </div>
           </div>
 
           {/* Other tabs overlay on top */}
-          {tab === "analysis" && (
+          {(!activeMainTab || activeMainTab === "main") && tab === "analysis" && (
             <div style={{ position: "absolute", inset: 0, zIndex: 1, overflow: "auto", background: "#080d1a" }}>
               <AnalysisTab nodes={nodes} steps={steps} anaError={anaError} anaLoading={anaLoading}
                 report={report} showRaw={showRaw} setShowRaw={setShowRaw}
@@ -188,7 +246,7 @@ export default function NetworkPhase({
             </div>
           )}
 
-          {tab === "data" && (
+          {(!activeMainTab || activeMainTab === "main") && tab === "data" && (
             <div style={{ position: "absolute", inset: 0, zIndex: 1, overflow: "auto", background: "#080d1a" }}>
               <DataTab nodes={nodes} edges={edges} influence={influence} analysed={analysed} problem={problem} />
             </div>
