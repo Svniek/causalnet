@@ -269,42 +269,36 @@ export default function Graph({ nodes, edges, positions, selected, onSelect, inf
 
             return (
               <g key={subNet.factorId} style={{ transition: "opacity 0.2s" }} opacity={baseOpacity}>
-                {/* Inter-solution edges — rendered BELOW nodes */}
+                {/* Inter-solution synergie edges — solid colored curves, hover tooltip only */}
                 {(subNet.edges || []).map(se => {
                   const fp = snPosMap[se.from], tp = snPosMap[se.to];
                   if (!fp || !tp) return null;
                   const fromNode = subNet.nodes.find(n => n.id === se.from);
                   const col  = ALL_TYPES[fromNode?.type]?.color || "#64748b";
                   const corr = se.correlation ?? 0.4;
-                  const sw   = Math.max(1, 1 + corr * 5); // thickness scales with correlation
-                  const midX = (fp.x + tp.x) / 2, midY = (fp.y + tp.y) / 2;
+                  const sw   = Math.max(1.5, 1.5 + corr * 5);
+                  const dx = tp.x - fp.x, dy = tp.y - fp.y, d = Math.sqrt(dx * dx + dy * dy) || 1;
+                  const cx = (fp.x + tp.x) / 2 - (dy / d) * 18, cy = (fp.y + tp.y) / 2 + (dx / d) * 18;
                   return (
                     <g key={se.id}
                       onMouseEnter={ev => setTooltip({ x: ev.clientX, y: ev.clientY, text: `Synergie \u00b7 r=${corr.toFixed(2)}` })}
                       onMouseLeave={() => setTooltip(null)}>
                       {/* Invisible wider hit area */}
-                      <line x1={fp.x} y1={fp.y} x2={tp.x} y2={tp.y} stroke="transparent" strokeWidth={12} style={{ cursor: "crosshair" }} />
-                      <line x1={fp.x} y1={fp.y} x2={tp.x} y2={tp.y}
-                        stroke={col} strokeWidth={sw} strokeOpacity={0.35 + corr * 0.35}
-                        strokeDasharray="4 3" strokeLinecap="round" />
-                      {corr > 0.5 && (
-                        <text x={midX} y={midY - 4} textAnchor="middle" fontSize={7.5} fill={col} opacity={0.75}
-                          fontFamily="sans-serif" style={{ pointerEvents: "none", userSelect: "none" }}>
-                          {corr.toFixed(2)}
-                        </text>
-                      )}
+                      <path d={`M${fp.x},${fp.y} Q${cx},${cy} ${tp.x},${tp.y}`} fill="none" stroke="transparent" strokeWidth={14} style={{ cursor: "crosshair" }} />
+                      {corr > 0.5 && <path d={`M${fp.x},${fp.y} Q${cx},${cy} ${tp.x},${tp.y}`} fill="none" stroke={col} strokeWidth={sw + 5} strokeOpacity={0.08} />}
+                      <path d={`M${fp.x},${fp.y} Q${cx},${cy} ${tp.x},${tp.y}`}
+                        fill="none" stroke={col} strokeWidth={sw}
+                        strokeOpacity={0.4 + corr * 0.35} strokeLinecap="round" />
                     </g>
                   );
                 })}
 
-                {/* Sub-nodes + edges to parent */}
+                {/* Sub-nodes — no lines to parent */}
                 {subNet.nodes.map((sn, i) => {
                   const sp = snPos[i];
                   const snInf = subNet.influence?.[sn.label] ?? 0.5;
                   const snCol = ALL_TYPES[sn.type]?.color || "#64748b";
                   const snR   = 6 + snInf * 14;
-                  const dx = parentPos.x - sp.x, dy = parentPos.y - sp.y;
-                  const d  = Math.sqrt(dx * dx + dy * dy) || 1;
                   const snWords = sn.label.split(" ");
                   const snLines = []; let snCur = "";
                   snWords.forEach(w => {
@@ -316,8 +310,6 @@ export default function Graph({ nodes, edges, positions, selected, onSelect, inf
                     <g key={sn.id}
                       onMouseEnter={ev => setTooltip({ x: ev.clientX, y: ev.clientY, text: `${sn.label} \u00b7 ${(snInf * 100).toFixed(0)}% effectiviteit` })}
                       onMouseLeave={() => setTooltip(null)}>
-                      <line x1={sp.x} y1={sp.y} x2={parentPos.x - (dx / d) * 20} y2={parentPos.y - (dy / d) * 20}
-                        stroke={snCol} strokeWidth={1} strokeOpacity={0.4} strokeDasharray="4 3" />
                       <circle cx={sp.x} cy={sp.y} r={snR} fill={snCol} fillOpacity={0.85} stroke="rgba(255,255,255,0.2)" strokeWidth={1} />
                       <text textAnchor="middle" fontFamily="sans-serif" fontSize={Math.max(7, snR * 0.55)}
                         fontWeight="700" fill="#fff" fillOpacity={0.92} style={{ pointerEvents: "none", userSelect: "none" }}>

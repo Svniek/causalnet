@@ -80,27 +80,29 @@ function SolutionGraph({ nodes, edges, influence }) {
           </filter>
         </defs>
 
-        {/* Edges */}
+        {/* Synergie edges — solid colored curves, tooltip on hover only */}
         {edges.map(e => {
           const fp = positions[e.from], tp = positions[e.to];
           if (!fp || !tp) return null;
           const fromNode = nodes.find(n => n.id === e.from);
-          const col = SOLUTION_TYPES[fromNode?.type]?.color || "#64748b";
+          const col  = SOLUTION_TYPES[fromNode?.type]?.color || "#64748b";
           const corr = e.correlation ?? 0.3;
+          const sw   = Math.max(1.5, 1.5 + corr * 5);
           const dx = tp.x - fp.x, dy = tp.y - fp.y, d = Math.sqrt(dx * dx + dy * dy) || 1;
-          const cx = (fp.x + tp.x) / 2 - (dy / d) * 20;
-          const cy = (fp.y + tp.y) / 2 + (dx / d) * 20;
+          const cx = (fp.x + tp.x) / 2 - (dy / d) * 24;
+          const cy = (fp.y + tp.y) / 2 + (dx / d) * 24;
           return (
-            <path
-              key={e.id}
-              d={`M${fp.x},${fp.y} Q${cx},${cy} ${tp.x},${tp.y}`}
-              fill="none"
-              stroke={col}
-              strokeWidth={1 + corr * 3}
-              strokeOpacity={0.45}
-              strokeDasharray="5 4"
-              strokeLinecap="round"
-            />
+            <g key={e.id}
+              onMouseEnter={ev => setTooltip({ x: ev.clientX, y: ev.clientY, text: `Synergie \u00b7 r=${corr.toFixed(2)}` })}
+              onMouseLeave={() => setTooltip(null)}>
+              {/* Invisible wider hit area */}
+              <path d={`M${fp.x},${fp.y} Q${cx},${cy} ${tp.x},${tp.y}`} fill="none" stroke="transparent" strokeWidth={14} style={{ cursor: "crosshair" }} />
+              {corr > 0.5 && <path d={`M${fp.x},${fp.y} Q${cx},${cy} ${tp.x},${tp.y}`} fill="none" stroke={col} strokeWidth={sw + 6} strokeOpacity={0.07} />}
+              {corr > 0.7 && <path d={`M${fp.x},${fp.y} Q${cx},${cy} ${tp.x},${tp.y}`} fill="none" stroke={col} strokeWidth={sw + 2} strokeOpacity={0.12} />}
+              <path d={`M${fp.x},${fp.y} Q${cx},${cy} ${tp.x},${tp.y}`}
+                fill="none" stroke={col} strokeWidth={sw}
+                strokeOpacity={0.4 + corr * 0.35} strokeLinecap="round" />
+            </g>
           );
         })}
 
@@ -371,6 +373,26 @@ export default function SolutionTabPanel({ sub, problem, apiKey, onMergeToggle, 
         {/* Analysis tab */}
         {sub.analysed && innerTab === "analysis" && (
           <div style={{ position: "absolute", inset: 0, overflow: "auto", padding: 24 }}>
+            {/* Influence scores chart */}
+            {sub.nodes.length > 0 && (
+              <div style={{ marginBottom: 24, padding: 14, background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 10 }}>
+                <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: 1, color: "#475569", marginBottom: 10 }}>Effectiviteitsscores oplossingen</div>
+                {[...sub.nodes].sort((a, b) => (sub.influence?.[b.label] || 0) - (sub.influence?.[a.label] || 0)).map(n => {
+                  const inf = sub.influence?.[n.label] ?? 0;
+                  const col = SOLUTION_TYPES[n.type]?.color || "#64748b";
+                  return (
+                    <div key={n.id} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 7 }}>
+                      <div style={{ width: 8, height: 8, borderRadius: "50%", background: col, flexShrink: 0 }} />
+                      <span style={{ fontSize: 11, color: "#64748b", width: 180, flexShrink: 0, lineHeight: 1.4, wordBreak: "break-word" }}>{n.label}</span>
+                      <div style={{ flex: 1, height: 5, background: "rgba(255,255,255,0.05)", borderRadius: 3, overflow: "hidden" }}>
+                        <div style={{ width: (inf * 100) + "%", height: "100%", background: col, borderRadius: 3, opacity: 0.8 }} />
+                      </div>
+                      <span style={{ fontSize: 10, color: col, width: 30, textAlign: "right" }}>{(inf * 100).toFixed(0)}%</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
             {sub.report ? (
               renderReport(sub.report)
             ) : (
