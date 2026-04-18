@@ -68,7 +68,23 @@ export default function NetworkPhase({
 
         {nodes.length > 0 && (
           <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column", marginBottom: 12 }}>
-            <label style={{ display: "block", fontSize: 9, textTransform: "uppercase", letterSpacing: 1.5, color: "#334155", marginBottom: 8 }}>Factoren ({nodes.length})</label>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+              <label style={{ display: "block", fontSize: 9, textTransform: "uppercase", letterSpacing: 1.5, color: "#334155" }}>Factoren ({nodes.length})</label>
+              <button
+                onClick={() => {
+                  const allHidden = nodes.every(n => hiddenNodes.has(n.id));
+                  if (allHidden) {
+                    setHiddenNodes(new Set());
+                  } else {
+                    setHiddenNodes(new Set(nodes.map(n => n.id)));
+                  }
+                }}
+                title={nodes.every(n => hiddenNodes.has(n.id)) ? "Alles tonen" : "Alles verbergen"}
+                style={{ fontSize: 9, padding: "2px 7px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 5, color: "#475569", cursor: "pointer" }}
+              >
+                {nodes.every(n => hiddenNodes.has(n.id)) ? "Alles aan" : "Alles uit"}
+              </button>
+            </div>
             <div style={{ overflowY: "auto", flex: 1 }}>
               {nodes.map(n => {
                 const inf = influence?.[n.label];

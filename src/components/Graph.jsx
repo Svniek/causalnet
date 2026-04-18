@@ -9,6 +9,7 @@ export default function Graph({ nodes, edges, positions, selected, onSelect, inf
   const [hiddenTypes, setHiddenTypes] = useState(new Set());
   const [contextMenu, setContextMenu] = useState(null); // { nodeId, screenX, screenY, label, type }
   const [hoverNodeId, setHoverNodeId] = useState(null);
+  const [solutionsVisible, setSolutionsVisible] = useState(true);
 
   // Close context menu on Escape
   useEffect(() => {
@@ -208,7 +209,7 @@ export default function Graph({ nodes, edges, positions, selected, onSelect, inf
         })}
 
         {/* Sub-networks (merged solutions) */}
-        {(subNetworks || []).map(subNet => {
+        {solutionsVisible && (subNetworks || []).map(subNet => {
           const parentPos = positions[subNet.factorId];
           if (!parentPos || !subNet.nodes || subNet.nodes.length === 0) return null;
           const count = subNet.nodes.length;
@@ -364,6 +365,25 @@ export default function Graph({ nodes, edges, positions, selected, onSelect, inf
             </div>
           );
         })}
+        {(subNetworks || []).length > 0 && (
+          <>
+            <div style={{ height: 1, background: "rgba(255,255,255,0.06)", margin: "6px 0" }} />
+            <div onClick={() => setSolutionsVisible(v => !v)}
+              style={{ display: "flex", alignItems: "center", gap: 7, cursor: "pointer",
+                opacity: solutionsVisible ? 1 : 0.35, transition: "opacity 0.15s" }}>
+              <div style={{ width: 9, height: 9, borderRadius: "50%", background: solutionsVisible ? "#10b981" : "#334155",
+                flexShrink: 0, transition: "background 0.15s" }} />
+              <span style={{ flex: 1 }}>Oplossingen</span>
+              <div style={{ width: 26, height: 14, borderRadius: 7,
+                background: solutionsVisible ? "rgba(96,165,250,0.25)" : "rgba(255,255,255,0.06)",
+                border: `1px solid ${solutionsVisible ? "rgba(96,165,250,0.5)" : "rgba(255,255,255,0.1)"}`,
+                position: "relative", flexShrink: 0, transition: "all 0.15s" }}>
+                <div style={{ position: "absolute", top: 2, left: solutionsVisible ? 13 : 2, width: 8, height: 8,
+                  borderRadius: "50%", background: solutionsVisible ? "#60a5fa" : "#334155", transition: "all 0.15s" }} />
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {analysed && (

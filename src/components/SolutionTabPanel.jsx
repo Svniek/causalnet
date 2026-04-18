@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { SOLUTION_TYPES, uid } from "../constants";
 import { renderReport } from "../utils/renderReport";
+import { exportAnalysisPdfWhite, exportAnalysisWord } from "../utils/exportWhite";
 import useForceLayout from "../hooks/useForceLayout";
 
 const SOL_W = 800;
@@ -189,6 +190,7 @@ function SolutionGraph({ nodes, edges, influence }) {
 
 export default function SolutionTabPanel({ sub, problem, apiKey, onMergeToggle, onVisibleToggle, onClose }) {
   const [innerTab, setInnerTab] = useState("network");
+  const [pdfLoading, setPdfLoading] = useState(false);
 
   if (!sub) return null;
 
@@ -227,6 +229,33 @@ export default function SolutionTabPanel({ sub, problem, apiKey, onMergeToggle, 
             </div>
           )}
         </div>
+
+        {/* Export controls */}
+        {sub.analysed && sub.report && (
+          <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
+            <button
+              onClick={async () => {
+                setPdfLoading(true);
+                try { await exportAnalysisPdfWhite(sub.report, `Oplossingen: ${sub.factorLabel}`); }
+                catch (e) { alert("PDF mislukt: " + e.message); }
+                setPdfLoading(false);
+              }}
+              disabled={pdfLoading}
+              style={{ padding: "5px 10px", background: "rgba(96,165,250,0.1)", border: "1px solid rgba(96,165,250,0.25)", borderRadius: 7, color: "#60a5fa", fontSize: 10, cursor: pdfLoading ? "wait" : "pointer" }}
+            >
+              {pdfLoading ? "⏳" : "📄"} PDF (wit)
+            </button>
+            <button
+              onClick={() => {
+                try { exportAnalysisWord(sub.report, `Oplossingen: ${sub.factorLabel}`); }
+                catch (e) { alert("Word export mislukt: " + e.message); }
+              }}
+              style={{ padding: "5px 10px", background: "rgba(52,211,153,0.1)", border: "1px solid rgba(52,211,153,0.25)", borderRadius: 7, color: "#34d399", fontSize: 10, cursor: "pointer" }}
+            >
+              📝 Word
+            </button>
+          </div>
+        )}
 
         {/* Merge / visible controls */}
         {sub.analysed && (
