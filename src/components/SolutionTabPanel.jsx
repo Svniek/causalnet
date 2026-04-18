@@ -391,6 +391,15 @@ export default function SolutionTabPanel({ sub, problem, apiKey, onMergeToggle, 
                     </div>
                   );
                 })}
+                {/* Legenda */}
+                <div style={{ marginTop: 12, paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.05)", display: "flex", flexWrap: "wrap", gap: "6px 16px" }}>
+                  {Object.entries(SOLUTION_TYPES).map(([k, v]) => (
+                    <div key={k} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                      <div style={{ width: 8, height: 8, borderRadius: "50%", background: v.color, flexShrink: 0 }} />
+                      <span style={{ fontSize: 10, color: "#475569" }}>{v.label}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
             {sub.report ? (

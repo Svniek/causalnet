@@ -64,6 +64,36 @@ export default function AnalysisTab({ nodes, steps, anaError, anaLoading, report
               {showRaw ? "\u25b2 Verberg ruwe tekst" : "\u25bc Toon ruwe tekst (debug)"}
             </button>
           </div>
+          {/* ── Invloedscores grafiek — bovenaan ── */}
+          {influence && nodes.filter(n => n.type !== "maingoal").length > 0 && (
+            <div data-pdf-hide style={{ marginBottom: 20, padding: 14, background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 10 }}>
+              <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: 1, color: "#475569", marginBottom: 10 }}>Invloedscores per factor</div>
+              {nodes.filter(n => n.type !== "maingoal").sort((a, b) => (influence?.[b.label] || 0) - (influence?.[a.label] || 0)).map(n => {
+                const inf = influence?.[n.label] ?? 0;
+                const t = TYPES[n.type];
+                return (
+                  <div key={n.id} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 7 }}>
+                    <div style={{ width: 8, height: 8, borderRadius: "50%", background: t.color, flexShrink: 0 }} />
+                    <span style={{ fontSize: 11, color: "#64748b", width: 180, flexShrink: 0, lineHeight: 1.4, wordBreak: "break-word" }}>{n.label}</span>
+                    <div style={{ flex: 1, height: 5, background: "rgba(255,255,255,0.05)", borderRadius: 3, overflow: "hidden" }}>
+                      <div style={{ width: (inf * 100) + "%", height: "100%", background: t.color, borderRadius: 3, opacity: 0.8 }} />
+                    </div>
+                    <span style={{ fontSize: 10, color: t.color, width: 30, textAlign: "right" }}>{(inf * 100).toFixed(0)}%</span>
+                  </div>
+                );
+              })}
+              {/* Legenda */}
+              <div style={{ marginTop: 12, paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.05)", display: "flex", flexWrap: "wrap", gap: "6px 16px" }}>
+                {Object.entries(TYPES).filter(([k]) => k !== "maingoal").map(([k, v]) => (
+                  <div key={k} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                    <div style={{ width: 8, height: 8, borderRadius: "50%", background: v.color, flexShrink: 0 }} />
+                    <span style={{ fontSize: 10, color: "#475569" }}>{v.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {showRaw && (
             <pre style={{ fontSize: 10, color: "#475569", fontFamily: "monospace", background: "rgba(0,0,0,0.3)",
               padding: 12, borderRadius: 8, overflowX: "auto", whiteSpace: "pre-wrap", marginBottom: 16, maxHeight: 300, overflowY: "auto" }}>
@@ -71,23 +101,6 @@ export default function AnalysisTab({ nodes, steps, anaError, anaLoading, report
             </pre>
           )}
           {renderReport(report)}
-          <div data-pdf-hide style={{ marginTop: 20, padding: 14, background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 10 }}>
-            <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: 1, color: "#475569", marginBottom: 10 }}>Invloedscores per factor</div>
-            {nodes.filter(n => n.type !== "maingoal").sort((a, b) => (influence?.[b.label] || 0) - (influence?.[a.label] || 0)).map(n => {
-              const inf = influence?.[n.label] ?? 0;
-              const t = TYPES[n.type];
-              return (
-                <div key={n.id} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 7 }}>
-                  <div style={{ width: 8, height: 8, borderRadius: "50%", background: t.color, flexShrink: 0 }} />
-                  <span style={{ fontSize: 11, color: "#64748b", width: 180, flexShrink: 0, lineHeight: 1.4, wordBreak: "break-word" }}>{n.label}</span>
-                  <div style={{ flex: 1, height: 5, background: "rgba(255,255,255,0.05)", borderRadius: 3, overflow: "hidden" }}>
-                    <div style={{ width: (inf * 100) + "%", height: "100%", background: t.color, borderRadius: 3, opacity: 0.8 }} />
-                  </div>
-                  <span style={{ fontSize: 10, color: t.color, width: 30, textAlign: "right" }}>{(inf * 100).toFixed(0)}%</span>
-                </div>
-              );
-            })}
-          </div>
 
           <div data-pdf-hide style={{ marginTop: 24, padding: 16, background: "rgba(124,58,237,0.06)", border: "1px solid rgba(124,58,237,0.2)", borderRadius: 12 }}>
             <div style={{ fontSize: 13, color: "#e2e8f0", fontWeight: 600, marginBottom: 4 }}>{"\ud83d\udd04"} Heranalyse uitvoeren</div>
