@@ -1,19 +1,31 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { TYPES, SOLUTION_TYPES, nodeRadius, edgeWidth } from "../constants";
+import { TYPES, SOLUTION_TYPES, PROBLEM_TYPES, nodeRadius, edgeWidth } from "../constants";
 
 const TYPE_ENTRIES = Object.entries(TYPES);
-const ALL_TYPES = { ...TYPES, ...SOLUTION_TYPES };
+const ALL_TYPES = { ...TYPES, ...SOLUTION_TYPES, ...PROBLEM_TYPES };
 
 const ZOOM_MIN = 0.2;
 const ZOOM_MAX = 6;
 const ZOOM_STEP = 1.25;
 
-export default function Graph({ nodes, edges, positions, selected, onSelect, influence, W, H, analysed, posRef, onDragNode, subNetworks, onSolutionAnalyse }) {
+export default function Graph({ nodes, edges, positions, selected, onSelect, influence, W, H, analysed, posRef, onDragNode, subNetworks, onSolutionAnalyse, onProblemAnalyse, onDragSubNode, showZoom }) {
   const [tooltip, setTooltip]           = useState(null);
   const [hiddenTypes, setHiddenTypes]   = useState(new Set());
   const [contextMenu, setContextMenu]   = useState(null);
   const [hoverNodeId, setHoverNodeId]   = useState(null);
   const [solutionsVisible, setSolutionsVisible] = useState(true);
+  const [problemsVisible, setProblemsVisible]   = useState(true);
+  const [hiddenSolTypes, setHiddenSolTypes]     = useState(new Set());
+  const [hiddenProbTypes, setHiddenProbTypes]   = useState(new Set());
+  const [showMainPct, setShowMainPct]           = useState(true);
+  const [showSolPct,  setShowSolPct]            = useState(true);
+
+  const toggleSolType = (key) => setHiddenSolTypes(prev => {
+    const next = new Set(prev); next.has(key) ? next.delete(key) : next.add(key); return next;
+  });
+  const toggleProbType = (key) => setHiddenProbTypes(prev => {
+    const next = new Set(prev); next.has(key) ? next.delete(key) : next.add(key); return next;
+  });
 
   // ── Zoom / Pan ──────────────────────────────────────────────────────────────
   const [vt, setVt] = useState({ x: 0, y: 0, scale: 1 }); // viewTransform
@@ -30,8 +42,9 @@ export default function Graph({ nodes, edges, positions, selected, onSelect, inf
     applyVt({ scale: ns, x: cx - (cx - t.x) * (ns / t.scale), y: cy - (cy - t.y) * (ns / t.scale) });
   };
 
-  const svgRef  = useRef(null);
-  const dragRef = useRef(null);
+  const svgRef     = useRef(null);
+  const dragRef    = useRef(null);
+  const subDragRef = useRef(null); // { factorId, nodeId, startX, startY, origX, origY }
   const didDragRef = useRef(false);
 
   // Raw SVG coords (before transform group) from client coords
@@ -99,7 +112,7 @@ export default function Graph({ nodes, edges, positions, selected, onSelect, inf
     didDragRef.current = false;
   }, []);
 
-  // ── Move: handle both node drag and canvas pan ───────────────────────────────
+  // ── Move: handle node drag, sub-node drag and canvas pan ────────────────────
   const handleMouseMove = useCallback((e) => {
     if (dragRef.current) {
       const { nodeId, startX, startY, origX, origY } = dragRef.current;
@@ -109,6 +122,12 @@ export default function Graph({ nodes, edges, positions, selected, onSelect, inf
       const r   = nodeRadius(nodes.find(n => n.id === nodeId) || { type: "risk", label: "" }, influence);
       const pad = r + 15;
       onDragNode(nodeId, Math.max(pad, Math.min(W - pad, origX + dx)), Math.max(pad, Math.min(H - pad, origY + dy)));
+    } else if (subDragRef.current) {
+      const { factorId, nodeId, startX, startY, origX, origY } = subDragRef.current;
+      const coords = toSvgCoords(e.clientX, e.clientY);
+      const dx = coords.x - startX, dy = coords.y - startY;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) didDragRef.current = true;
+      onDragSubNode?.(factorId, nodeId, origX + dx, origY + dy);
     } else if (panRef.current) {
       const svg = svgRef.current;
       if (!svg) return;
@@ -118,11 +137,12 @@ export default function Graph({ nodes, edges, positions, selected, onSelect, inf
       if (Math.abs(dx) > 3 || Math.abs(dy) > 3) didDragRef.current = true;
       applyVt({ ...vtRef.current, x: panRef.current.origX + dx, y: panRef.current.origY + dy });
     }
-  }, [toSvgCoords, onDragNode, nodes, influence, W, H]);
+  }, [toSvgCoords, onDragNode, onDragSubNode, nodes, influence, W, H]);
 
   const handleMouseUp = useCallback(() => {
-    dragRef.current = null;
-    panRef.current  = null;
+    dragRef.current    = null;
+    subDragRef.current = null;
+    panRef.current     = null;
     setIsPanning(false);
   }, []);
 
@@ -183,14 +203,6 @@ export default function Graph({ nodes, edges, positions, selected, onSelect, inf
                   strokeOpacity={analysed ? opacity : opacity * 0.45}
                   strokeDasharray={dashArray} strokeLinecap="round"
                   style={{ cursor: "crosshair" }} />
-                {analysed && corr > 0.45 && !isInterFactor && (
-                  <text x={(sx + tp.x) / 2 - (dy / d) * 14} y={(sy + tp.y) / 2 + (dx / d) * 14}
-                    textAnchor="middle" fontSize={corr > 0.65 ? 10 : 8}
-                    fill={col} opacity={corr > 0.65 ? 0.85 : 0.55}
-                    fontFamily="sans-serif" fontWeight={corr > 0.65 ? "600" : "400"}>
-                    {corr.toFixed(2)}
-                  </text>
-                )}
               </g>
             );
           })}
@@ -224,34 +236,39 @@ export default function Graph({ nodes, edges, positions, selected, onSelect, inf
                 onMouseEnter={ev => { setTooltip({ x: ev.clientX, y: ev.clientY, text: n.label + (inf != null ? " \u00b7 invloed: " + (inf * 100).toFixed(0) + "%" : "") }); setHoverNodeId(n.id); }}
                 onMouseLeave={() => { setTooltip(null); setHoverNodeId(null); }}
                 style={{ cursor: dragRef.current ? "grabbing" : "grab" }}>
-                <circle cx={p.x} cy={p.y} r={r + 14} fill={t.color} opacity={isSel ? 0.22 : inf > 0.7 ? 0.14 : 0.05} />
-                {inf > 0.7 && <circle cx={p.x} cy={p.y} r={r + 7} fill={t.color} opacity={0.08} />}
+                {isSel && <circle cx={p.x} cy={p.y} r={r + 10} fill={t.color} opacity={0.18} />}
                 {n.type === "maingoal"
                   ? <polygon points={`${p.x},${p.y - r} ${p.x + r},${p.y} ${p.x},${p.y + r} ${p.x - r},${p.y}`}
                       fill={t.color} fillOpacity={0.93} stroke={isSel ? "#fff" : t.color} strokeWidth={isSel ? 3 : 2} filter="url(#glow)" />
                   : <circle cx={p.x} cy={p.y} r={r} fill={t.color} fillOpacity={0.88}
                       stroke={isSel ? "#fff" : "rgba(255,255,255,0.2)"} strokeWidth={isSel ? 3 : 1}
-                      filter={isSel || inf > 0.65 ? "url(#glow-sm)" : ""} />
+                      filter={isSel ? "url(#glow-sm)" : ""} />
                 }
-                {analysed && inf > 0.65 && n.type !== "maingoal" && (
-                  <circle cx={p.x} cy={p.y} r={r + 6} fill="none" stroke={t.color} strokeWidth={1.5} strokeOpacity={0.5} strokeDasharray="4 3" />
+
+                {/* Percentage centered inside the circle */}
+                {showMainPct && analysed && inf != null && n.type !== "maingoal" && (
+                  <text x={p.x} y={p.y} textAnchor="middle" dominantBaseline="central"
+                    fontFamily="sans-serif" fontSize={Math.max(8, Math.min(13, r * 0.65))}
+                    fontWeight="700" fill="#000" fillOpacity={0.75}
+                    style={{ pointerEvents: "none", userSelect: "none" }}>
+                    {(inf * 100).toFixed(0)}%
+                  </text>
                 )}
+                {/* Label below the circle */}
                 <text textAnchor="middle" fontFamily="sans-serif" fontSize={fs}
                   fontWeight={inf > 0.65 ? "600" : "400"} fill="#e2e8f0"
                   style={{ pointerEvents: "none", userSelect: "none" }}>
                   {lines.map((l, li) => <tspan key={li} x={p.x} y={yStart + li * lineH}>{l}</tspan>)}
-                  {analysed && inf != null && n.type !== "maingoal" && (
-                    <tspan x={p.x} y={yStart + totalH + 1} fontSize={9} fill={t.color} opacity={0.85} fontWeight="600">
-                      {(inf * 100).toFixed(0)}%
-                    </tspan>
-                  )}
                 </text>
               </g>
             );
           })}
 
           {/* ── Merged sub-networks ─────────────────────────────────────────── */}
-          {solutionsVisible && (subNetworks || []).map(subNet => {
+          {(subNetworks || []).map(subNet => {
+            const isProblems = subNet.analysisMode === "problems";
+            if (isProblems ? !problemsVisible : !solutionsVisible) return null;
+            const hiddenSet = isProblems ? hiddenProbTypes : hiddenSolTypes;
             const parentPos = positions[subNet.factorId];
             if (!parentPos || !subNet.nodes?.length) return null;
             const count = subNet.nodes.length;
@@ -260,20 +277,52 @@ export default function Graph({ nodes, edges, positions, selected, onSelect, inf
             if (!subNet.visible && !isHovering) return null;
             const ringR = 110;
 
-            // Pre-compute sub-node positions
+            // Pre-compute sub-node positions — use persisted position if available, else ring formula
             const snPos = subNet.nodes.map((sn, i) => {
+              if (subNet.nodePositions?.[sn.id]) return { id: sn.id, ...subNet.nodePositions[sn.id] };
               const angle = (i / count) * 2 * Math.PI - Math.PI / 2;
               return { id: sn.id, x: parentPos.x + ringR * Math.cos(angle), y: parentPos.y + ringR * Math.sin(angle) };
             });
             const snPosMap = Object.fromEntries(snPos.map(p => [p.id, p]));
 
+            const parentNode = nodes.find(n => n.id === subNet.factorId);
+            const parentR = parentNode ? nodeRadius(parentNode, influence) : 20;
+
             return (
               <g key={subNet.factorId} style={{ transition: "opacity 0.2s" }} opacity={baseOpacity}>
+                {/* Influence edges: each sub-node → parent factor */}
+                {subNet.nodes.filter(sn => !hiddenSet.has(sn.type)).map(sn => {
+                  const sp = snPosMap[sn.id];
+                  if (!sp) return null;
+                  const col  = ALL_TYPES[sn.type]?.color || "#64748b";
+                  const corr = subNet.influence?.[sn.label] ?? 0.5;
+                  const sw   = Math.max(1.5, 1.5 + corr * 4);
+                  const dx = parentPos.x - sp.x, dy = parentPos.y - sp.y, d = Math.sqrt(dx * dx + dy * dy) || 1;
+                  // Stop edge at the parent's circle edge
+                  const tx = parentPos.x - (dx / d) * parentR;
+                  const ty = parentPos.y - (dy / d) * parentR;
+                  const cx = (sp.x + tx) / 2 - (dy / d) * 12;
+                  const cy = (sp.y + ty) / 2 + (dx / d) * 12;
+                  return (
+                    <g key={`inf_${sn.id}`}
+                      onMouseEnter={ev => setTooltip({ x: ev.clientX, y: ev.clientY, text: `${sn.label} → ${parentNode?.label || ""} \u00b7 ${(corr * 100).toFixed(0)}%` })}
+                      onMouseLeave={() => setTooltip(null)}>
+                      <path d={`M${sp.x},${sp.y} Q${cx},${cy} ${tx},${ty}`} fill="none" stroke="transparent" strokeWidth={12} style={{ cursor: "crosshair" }} />
+                      {corr > 0.5 && <path d={`M${sp.x},${sp.y} Q${cx},${cy} ${tx},${ty}`} fill="none" stroke={col} strokeWidth={sw + 5} strokeOpacity={0.07} />}
+                      <path d={`M${sp.x},${sp.y} Q${cx},${cy} ${tx},${ty}`}
+                        fill="none" stroke={col} strokeWidth={sw}
+                        strokeOpacity={0.45 + corr * 0.35} strokeLinecap="round" />
+                    </g>
+                  );
+                })}
+
                 {/* Inter-solution synergie edges — solid colored curves, hover tooltip only */}
                 {(subNet.edges || []).map(se => {
                   const fp = snPosMap[se.from], tp = snPosMap[se.to];
                   if (!fp || !tp) return null;
                   const fromNode = subNet.nodes.find(n => n.id === se.from);
+                  const toNode   = subNet.nodes.find(n => n.id === se.to);
+                  if (hiddenSet.has(fromNode?.type) || hiddenSet.has(toNode?.type)) return null;
                   const col  = ALL_TYPES[fromNode?.type]?.color || "#64748b";
                   const corr = se.correlation ?? 0.4;
                   const sw   = Math.max(1.5, 1.5 + corr * 5);
@@ -293,9 +342,9 @@ export default function Graph({ nodes, edges, positions, selected, onSelect, inf
                   );
                 })}
 
-                {/* Sub-nodes — no lines to parent */}
-                {subNet.nodes.map((sn, i) => {
-                  const sp = snPos[i];
+                {/* Sub-nodes — no lines to parent, draggable */}
+                {subNet.nodes.filter(sn => !hiddenSet.has(sn.type)).map((sn) => {
+                  const sp = snPosMap[sn.id];
                   const snInf = subNet.influence?.[sn.label] ?? 0.5;
                   const snCol = ALL_TYPES[sn.type]?.color || "#64748b";
                   const snR   = 6 + snInf * 14;
@@ -308,13 +357,25 @@ export default function Graph({ nodes, edges, positions, selected, onSelect, inf
                   if (snCur) snLines.push(snCur);
                   return (
                     <g key={sn.id}
+                      style={{ cursor: "grab" }}
+                      onMouseDown={e => {
+                        e.stopPropagation();
+                        const coords = toSvgCoords(e.clientX, e.clientY);
+                        subDragRef.current = { factorId: subNet.factorId, nodeId: sn.id, startX: coords.x, startY: coords.y, origX: sp.x, origY: sp.y };
+                        didDragRef.current = false;
+                      }}
                       onMouseEnter={ev => setTooltip({ x: ev.clientX, y: ev.clientY, text: `${sn.label} \u00b7 ${(snInf * 100).toFixed(0)}% effectiviteit` })}
                       onMouseLeave={() => setTooltip(null)}>
                       <circle cx={sp.x} cy={sp.y} r={snR} fill={snCol} fillOpacity={0.85} stroke="rgba(255,255,255,0.2)" strokeWidth={1} />
-                      <text textAnchor="middle" fontFamily="sans-serif" fontSize={Math.max(7, snR * 0.55)}
-                        fontWeight="700" fill="#fff" fillOpacity={0.92} style={{ pointerEvents: "none", userSelect: "none" }}>
-                        <tspan x={sp.x} y={sp.y + Math.max(7, snR * 0.55) * 0.35}>{(snInf * 100).toFixed(0)}%</tspan>
-                      </text>
+                      {showSolPct && (
+                        <text x={sp.x} y={sp.y} textAnchor="middle" dominantBaseline="central"
+                          fontFamily="sans-serif" fontSize={Math.max(7, snR * 0.55)}
+                          fontWeight="700"
+                          fill="#ffffff"
+                          style={{ pointerEvents: "none", userSelect: "none" }}>
+                          {(snInf * 100).toFixed(0)}%
+                        </text>
+                      )}
                       <text textAnchor="middle" fontFamily="sans-serif" fontSize={8} fill="#e2e8f0"
                         style={{ pointerEvents: "none", userSelect: "none" }}>
                         {snLines.map((l, li) => <tspan key={li} x={sp.x} y={sp.y + snR + 10 + li * 10}>{l}</tspan>)}
@@ -328,8 +389,8 @@ export default function Graph({ nodes, edges, positions, selected, onSelect, inf
         </g>{/* end transform group */}
       </svg>
 
-      {/* ── Zoom buttons ─────────────────────────────────────────────────────── */}
-      <div style={{ position: "absolute", top: 10, right: 10, display: "flex", flexDirection: "column", gap: 4, zIndex: 10 }}>
+      {/* ── Zoom buttons (only visible on network/graph tab) ─────────────────── */}
+      <div style={{ position: "absolute", top: 10, right: 10, display: showZoom ? "flex" : "none", flexDirection: "column", gap: 4, zIndex: 10 }}>
         {[
           { label: "+", title: "Inzoomen",     action: () => zoomBy(ZOOM_STEP) },
           { label: "−", title: "Uitzoomen",    action: () => zoomBy(1 / ZOOM_STEP) },
@@ -369,6 +430,14 @@ export default function Graph({ nodes, edges, positions, selected, onSelect, inf
               backgroundImage: "linear-gradient(90deg, rgba(245,158,11,0.08) 0%, transparent 100%)" }}>
             🔍 Analyseer oplossingen
           </button>
+          {analysed && onProblemAnalyse && (
+            <button onClick={() => { onProblemAnalyse(contextMenu.nodeId); setContextMenu(null); }}
+              style={{ display: "block", width: "100%", textAlign: "left", padding: "9px 14px",
+                background: "none", border: "none", cursor: "pointer", fontSize: 12, color: "#60a5fa", fontWeight: 600,
+                backgroundImage: "linear-gradient(90deg, rgba(96,165,250,0.08) 0%, transparent 100%)" }}>
+              🔎 Analyseer oorzaken
+            </button>
+          )}
           <button onClick={() => setContextMenu(null)}
             style={{ position: "absolute", top: 6, right: 8, background: "none", border: "none",
               color: "#475569", cursor: "pointer", fontSize: 16, padding: 0, lineHeight: 1 }}>
@@ -404,7 +473,7 @@ export default function Graph({ nodes, edges, positions, selected, onSelect, inf
             </div>
           );
         })}
-        {(subNetworks || []).length > 0 && (
+        {(subNetworks || []).some(s => s.analysisMode !== "problems") && (
           <>
             <div style={{ height: 1, background: "rgba(255,255,255,0.06)", margin: "6px 0" }} />
             <div onClick={() => setSolutionsVisible(v => !v)}
@@ -418,7 +487,90 @@ export default function Graph({ nodes, edges, positions, selected, onSelect, inf
             </div>
           </>
         )}
+        {(subNetworks || []).some(s => s.analysisMode === "problems") && (
+          <div onClick={() => setProblemsVisible(v => !v)}
+            style={{ display: "flex", alignItems: "center", gap: 7, cursor: "pointer", marginTop: 5, opacity: problemsVisible ? 1 : 0.35, transition: "opacity 0.15s" }}>
+            <div style={{ width: 9, height: 9, borderRadius: "50%", background: problemsVisible ? "#dc2626" : "#334155", flexShrink: 0, transition: "background 0.15s" }} />
+            <span style={{ flex: 1 }}>Oorzaken</span>
+            <div style={{ width: 26, height: 14, borderRadius: 7, background: problemsVisible ? "rgba(96,165,250,0.25)" : "rgba(255,255,255,0.06)",
+              border: `1px solid ${problemsVisible ? "rgba(96,165,250,0.5)" : "rgba(255,255,255,0.1)"}`, position: "relative", flexShrink: 0, transition: "all 0.15s" }}>
+              <div style={{ position: "absolute", top: 2, left: problemsVisible ? 13 : 2, width: 8, height: 8, borderRadius: "50%", background: problemsVisible ? "#60a5fa" : "#334155", transition: "all 0.15s" }} />
+            </div>
+          </div>
+        )}
+        {analysed && (
+          <>
+            <div style={{ height: 1, background: "rgba(255,255,255,0.06)", margin: "6px 0" }} />
+            {[
+              { label: "% factoren",    on: showMainPct, toggle: () => setShowMainPct(v => !v) },
+              { label: "% oplossingen", on: showSolPct,  toggle: () => setShowSolPct(v => !v) },
+            ].map(({ label, on, toggle }) => (
+              <div key={label} onClick={toggle}
+                style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 5, cursor: "pointer", opacity: on ? 1 : 0.35, transition: "opacity 0.15s" }}>
+                <span style={{ fontSize: 9, fontWeight: 700, color: on ? "#e2e8f0" : "#334155", width: 9, textAlign: "center", flexShrink: 0 }}>%</span>
+                <span style={{ flex: 1 }}>{label}</span>
+                <div style={{ width: 26, height: 14, borderRadius: 7, background: on ? "rgba(96,165,250,0.25)" : "rgba(255,255,255,0.06)",
+                  border: `1px solid ${on ? "rgba(96,165,250,0.5)" : "rgba(255,255,255,0.1)"}`, position: "relative", flexShrink: 0, transition: "all 0.15s" }}>
+                  <div style={{ position: "absolute", top: 2, left: on ? 13 : 2, width: 8, height: 8, borderRadius: "50%", background: on ? "#60a5fa" : "#334155", transition: "all 0.15s" }} />
+                </div>
+              </div>
+            ))}
+          </>
+        )}
       </div>
+
+      {/* ── Sub-network type legends bottom-center ──────────────────────────── */}
+      {(subNetworks || []).length > 0 && (
+        <div style={{ position: "absolute", bottom: 10, left: "50%", transform: "translateX(-50%)",
+          display: "flex", flexDirection: "row", gap: 10, alignItems: "flex-end" }}>
+          {solutionsVisible && (subNetworks || []).some(s => s.analysisMode !== "problems") && (
+            <div style={{
+              background: "rgba(8,13,26,0.88)", border: "1px solid rgba(255,255,255,0.08)",
+              borderRadius: 8, padding: "10px 14px", fontSize: 10, color: "#475569", userSelect: "none",
+              display: "flex", flexDirection: "column", gap: 0
+            }}>
+              <div style={{ color: "#64748b", fontWeight: 600, letterSpacing: 0.5, fontSize: 9, textTransform: "uppercase", marginBottom: 7 }}>Oplossingen</div>
+              {Object.entries(SOLUTION_TYPES).map(([key, { label, color }]) => {
+                const on = !hiddenSolTypes.has(key);
+                return (
+                  <div key={key} onClick={() => toggleSolType(key)}
+                    style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 5, cursor: "pointer", opacity: on ? 1 : 0.35, transition: "opacity 0.15s" }}>
+                    <div style={{ width: 9, height: 9, borderRadius: "50%", background: on ? color : "#334155", flexShrink: 0, transition: "background 0.15s" }} />
+                    <span style={{ flex: 1, whiteSpace: "nowrap" }}>{label}</span>
+                    <div style={{ width: 26, height: 14, borderRadius: 7, background: on ? "rgba(96,165,250,0.25)" : "rgba(255,255,255,0.06)",
+                      border: `1px solid ${on ? "rgba(96,165,250,0.5)" : "rgba(255,255,255,0.1)"}`, position: "relative", flexShrink: 0, transition: "all 0.15s" }}>
+                      <div style={{ position: "absolute", top: 2, left: on ? 13 : 2, width: 8, height: 8, borderRadius: "50%", background: on ? "#60a5fa" : "#334155", transition: "all 0.15s" }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {problemsVisible && (subNetworks || []).some(s => s.analysisMode === "problems") && (
+            <div style={{
+              background: "rgba(8,13,26,0.88)", border: "1px solid rgba(255,255,255,0.08)",
+              borderRadius: 8, padding: "10px 14px", fontSize: 10, color: "#475569", userSelect: "none",
+              display: "flex", flexDirection: "column", gap: 0
+            }}>
+              <div style={{ color: "#64748b", fontWeight: 600, letterSpacing: 0.5, fontSize: 9, textTransform: "uppercase", marginBottom: 7 }}>Oorzaken</div>
+              {Object.entries(PROBLEM_TYPES).map(([key, { label, color }]) => {
+                const on = !hiddenProbTypes.has(key);
+                return (
+                  <div key={key} onClick={() => toggleProbType(key)}
+                    style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 5, cursor: "pointer", opacity: on ? 1 : 0.35, transition: "opacity 0.15s" }}>
+                    <div style={{ width: 9, height: 9, borderRadius: "50%", background: on ? color : "#334155", flexShrink: 0, transition: "background 0.15s" }} />
+                    <span style={{ flex: 1, whiteSpace: "nowrap" }}>{label}</span>
+                    <div style={{ width: 26, height: 14, borderRadius: 7, background: on ? "rgba(96,165,250,0.25)" : "rgba(255,255,255,0.06)",
+                      border: `1px solid ${on ? "rgba(96,165,250,0.5)" : "rgba(255,255,255,0.1)"}`, position: "relative", flexShrink: 0, transition: "all 0.15s" }}>
+                      <div style={{ position: "absolute", top: 2, left: on ? 13 : 2, width: 8, height: 8, borderRadius: "50%", background: on ? "#60a5fa" : "#334155", transition: "all 0.15s" }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── Correlation legend bottom-right ──────────────────────────────────── */}
       {analysed && (
@@ -433,10 +585,7 @@ export default function Graph({ nodes, edges, positions, selected, onSelect, inf
             <svg width={44} height={14}><line x1={0} y1={7} x2={44} y2={7} stroke="#94a3b8" strokeWidth={8} /></svg>
             <span>sterk verband</span>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-            <svg width={44} height={8}><line x1={0} y1={4} x2={44} y2={4} stroke="#64748b" strokeWidth={1.5} strokeDasharray="4 3" /></svg>
-            <span>factor&#x2194;factor correlatie</span>
-          </div>
+
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
             <svg width={20} height={20}><circle cx={10} cy={10} r={5} fill="#94a3b8" /></svg>
             <span>lage invloed</span>

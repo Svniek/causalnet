@@ -1,4 +1,8 @@
-export default function ProblemPhase({ problem, setProblem, apiKey, sugLoading, sugError, onGenerate }) {
+import { useRef } from "react";
+
+export default function ProblemPhase({ problem, setProblem, apiKey, sugLoading, sugError, onGenerate, onLoad }) {
+  const fileInputRef = useRef(null);
+
   return (
     <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: 28, background: "radial-gradient(ellipse at 50% 30%,#0d1a35,#080d1a)" }}>
       <div style={{ width: "100%", maxWidth: 560, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 18, padding: 36 }}>
@@ -21,6 +25,23 @@ export default function ProblemPhase({ problem, setProblem, apiKey, sugLoading, 
             ? [<span key="s" style={{ width: 13, height: 13, borderRadius: "50%", border: "2px solid rgba(0,0,0,0.2)", borderTopColor: "#000", display: "inline-block", animation: "spin 0.7s linear infinite" }} />, " Factoren genereren\u2026"]
             : "\u2728 Genereer factoren voor dit onderwerp \u2192"}
         </button>
+
+        {onLoad && (
+          <>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "18px 0 14px" }}>
+              <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.07)" }} />
+              <span style={{ fontSize: 11, color: "#334155" }}>of</span>
+              <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.07)" }} />
+            </div>
+            <input ref={fileInputRef} type="file" style={{ display: "none" }}
+              onChange={(e) => { if (e.target.files[0]) { onLoad(e.target.files[0]); e.target.value = ""; } }} />
+            <button onClick={() => fileInputRef.current?.click()}
+              style={{ width: "100%", padding: "11px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "#64748b", fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+              📂 Opgeslagen analyse laden
+            </button>
+          </>
+        )}
+
       </div>
     </div>
   );

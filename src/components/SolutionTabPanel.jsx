@@ -1,5 +1,8 @@
-import { useState, useRef, useEffect } from "react";
-import { SOLUTION_TYPES, uid } from "../constants";
+import { useState, useRef, useEffect, useLayoutEffect } from "react";
+import { TYPES, SOLUTION_TYPES, PROBLEM_TYPES, uid } from "../constants";
+import SubReanalysePanel from "./SubReanalysePanel";
+
+const ALL_TYPES = { ...TYPES, ...SOLUTION_TYPES, ...PROBLEM_TYPES };
 import { renderReport } from "../utils/renderReport";
 import { exportAnalysisPdfWhite, exportAnalysisWord } from "../utils/exportWhite";
 import useForceLayout from "../hooks/useForceLayout";
@@ -7,21 +10,21 @@ import useForceLayout from "../hooks/useForceLayout";
 const SOL_W = 800;
 const SOL_H = 500;
 
-function SolutionGraph({ nodes, edges, influence }) {
-  const containerRef = useRef(null);
-  const [W, setW] = useState(SOL_W);
-  const [H, setH] = useState(SOL_H);
-  const { positions, onDragNode } = useForceLayout(nodes, edges, influence, W, H);
-  const svgRef = useRef(null);
-  const dragRef = useRef(null);
-  const didDragRef = useRef(false);
-  const [tooltip, setTooltip] = useState(null);
+const CENTER_ID = "__center__";
 
-  useEffect(() => {
+// Wrapper that measures container dimensions BEFORE mounting the inner graph.
+// This ensures useForceLayout initialises positions with the correct W/H from the start,
+// so switching from a main tab into the sub-tab no longer produces a messy layout.
+function SolutionGraph(props) {
+  const containerRef = useRef(null);
+  const [dims, setDims] = useState(null); // null until measured
+
+  useLayoutEffect(() => {
     const update = () => {
       if (containerRef.current) {
-        setW(containerRef.current.clientWidth || SOL_W);
-        setH(containerRef.current.clientHeight || SOL_H);
+        const w = containerRef.current.clientWidth || SOL_W;
+        const h = containerRef.current.clientHeight || SOL_H;
+        setDims(prev => (prev && prev.w === w && prev.h === h) ? prev : { w, h });
       }
     };
     update();
@@ -29,6 +32,37 @@ function SolutionGraph({ nodes, edges, influence }) {
     if (containerRef.current) ro.observe(containerRef.current);
     return () => ro.disconnect();
   }, []);
+
+  return (
+    <div ref={containerRef} style={{ width: "100%", height: "100%", position: "relative" }}>
+      {dims && <SolutionGraphInner {...props} W={dims.w} H={dims.h} />}
+    </div>
+  );
+}
+
+function SolutionGraphInner({ nodes, edges, influence, factorLabel, factorType, isProblems, W, H }) {
+  const pctColor = "#ffffff";
+  const TYPE_MAP = isProblems ? PROBLEM_TYPES : SOLUTION_TYPES;
+
+  // Build augmented graph with the analyzed factor as the central node
+  const augNodes = [
+    { id: CENTER_ID, label: factorLabel, type: "maingoal" }, // type=maingoal so the force layout pins it to center
+    ...nodes,
+  ];
+  const augInfluence = { ...(influence || {}), [factorLabel]: 1 };
+  // Influence edges: each sub-node → center factor
+  const influenceEdges = nodes.map(n => ({
+    id: `inf_${n.id}`,
+    from: n.id,
+    to: CENTER_ID,
+    correlation: influence?.[n.label] ?? 0.5,
+  }));
+
+  const { positions, posRef, onDragNode, centerPinRef } = useForceLayout(augNodes, edges, augInfluence, W, H);
+  const svgRef = useRef(null);
+  const dragRef = useRef(null);
+  const didDragRef = useRef(false);
+  const [tooltip, setTooltip] = useState(null);
 
   const toSvgCoords = (clientX, clientY) => {
     const svg = svgRef.current;
@@ -46,25 +80,51 @@ function SolutionGraph({ nodes, edges, influence }) {
     const pos = positions[nodeId];
     if (!pos) return;
     didDragRef.current = false;
-    dragRef.current = { nodeId, startX: coords.x, startY: coords.y, origX: pos.x, origY: pos.y };
+    if (nodeId === CENTER_ID) {
+      // Snapshot all positions so the whole cluster moves together
+      const snapshot = {};
+      for (const id in posRef.current) {
+        snapshot[id] = { x: posRef.current[id].x, y: posRef.current[id].y };
+      }
+      dragRef.current = { nodeId, startX: coords.x, startY: coords.y, snapshot };
+    } else {
+      dragRef.current = { nodeId, startX: coords.x, startY: coords.y, origX: pos.x, origY: pos.y };
+    }
   };
 
   const handleMouseMove = (e) => {
     if (!dragRef.current) return;
-    const { nodeId, startX, startY, origX, origY } = dragRef.current;
+    const { nodeId, startX, startY } = dragRef.current;
     const coords = toSvgCoords(e.clientX, e.clientY);
     const dx = coords.x - startX, dy = coords.y - startY;
     if (Math.abs(dx) > 3 || Math.abs(dy) > 3) didDragRef.current = true;
-    onDragNode(nodeId,
-      Math.max(20, Math.min(W - 20, origX + dx)),
-      Math.max(20, Math.min(H - 20, origY + dy))
-    );
+    if (nodeId === CENTER_ID) {
+      // Shift every node by the same delta — cluster moves as a whole
+      const snap = dragRef.current.snapshot;
+      for (const id in snap) {
+        onDragNode(id,
+          Math.max(20, Math.min(W - 20, snap[id].x + dx)),
+          Math.max(20, Math.min(H - 20, snap[id].y + dy))
+        );
+      }
+      // Override physics pin so the centre stays where the user drops it
+      centerPinRef.current = {
+        x: Math.max(20, Math.min(W - 20, snap[CENTER_ID].x + dx)),
+        y: Math.max(20, Math.min(H - 20, snap[CENTER_ID].y + dy)),
+      };
+    } else {
+      const { origX, origY } = dragRef.current;
+      onDragNode(nodeId,
+        Math.max(20, Math.min(W - 20, origX + dx)),
+        Math.max(20, Math.min(H - 20, origY + dy))
+      );
+    }
   };
 
   const handleMouseUp = () => { dragRef.current = null; };
 
   return (
-    <div ref={containerRef} style={{ width: "100%", height: "100%", position: "relative" }}>
+    <>
       <svg
         ref={svgRef}
         width={W} height={H}
@@ -80,12 +140,37 @@ function SolutionGraph({ nodes, edges, influence }) {
           </filter>
         </defs>
 
+        {/* Influence edges: each sub-node → central factor (rendered first, behind synergie) */}
+        {influenceEdges.map(e => {
+          const fp = positions[e.from], tp = positions[e.to];
+          if (!fp || !tp) return null;
+          const fromNode = nodes.find(n => n.id === e.from);
+          const col  = TYPE_MAP[fromNode?.type]?.color || ALL_TYPES[fromNode?.type]?.color || "#64748b";
+          const corr = e.correlation ?? 0.4;
+          const sw   = Math.max(1.5, 1.5 + corr * 5);
+          const dx = tp.x - fp.x, dy = tp.y - fp.y, d = Math.sqrt(dx * dx + dy * dy) || 1;
+          const cx = (fp.x + tp.x) / 2 - (dy / d) * 30;
+          const cy = (fp.y + tp.y) / 2 + (dx / d) * 30;
+          return (
+            <g key={e.id}
+              onMouseEnter={ev => setTooltip({ x: ev.clientX, y: ev.clientY, text: `${fromNode?.label} → ${factorLabel} \u00b7 ${(corr * 100).toFixed(0)}%` })}
+              onMouseLeave={() => setTooltip(null)}>
+              <path d={`M${fp.x},${fp.y} Q${cx},${cy} ${tp.x},${tp.y}`} fill="none" stroke="transparent" strokeWidth={14} style={{ cursor: "crosshair" }} />
+              {corr > 0.5 && <path d={`M${fp.x},${fp.y} Q${cx},${cy} ${tp.x},${tp.y}`} fill="none" stroke={col} strokeWidth={sw + 6} strokeOpacity={0.07} />}
+              {corr > 0.7 && <path d={`M${fp.x},${fp.y} Q${cx},${cy} ${tp.x},${tp.y}`} fill="none" stroke={col} strokeWidth={sw + 2} strokeOpacity={0.13} />}
+              <path d={`M${fp.x},${fp.y} Q${cx},${cy} ${tp.x},${tp.y}`}
+                fill="none" stroke={col} strokeWidth={sw}
+                strokeOpacity={0.5 + corr * 0.35} strokeLinecap="round" />
+            </g>
+          );
+        })}
+
         {/* Synergie edges — solid colored curves, tooltip on hover only */}
         {edges.map(e => {
           const fp = positions[e.from], tp = positions[e.to];
           if (!fp || !tp) return null;
           const fromNode = nodes.find(n => n.id === e.from);
-          const col  = SOLUTION_TYPES[fromNode?.type]?.color || "#64748b";
+          const col  = TYPE_MAP[fromNode?.type]?.color || ALL_TYPES[fromNode?.type]?.color || "#64748b";
           const corr = e.correlation ?? 0.3;
           const sw   = Math.max(1.5, 1.5 + corr * 5);
           const dx = tp.x - fp.x, dy = tp.y - fp.y, d = Math.sqrt(dx * dx + dy * dy) || 1;
@@ -106,13 +191,62 @@ function SolutionGraph({ nodes, edges, influence }) {
           );
         })}
 
+        {/* Central factor node — large circle with avg % inside */}
+        {(() => {
+          const cp = positions[CENTER_ID];
+          if (!cp) return null;
+          const cCol = TYPES[factorType]?.color || ALL_TYPES[factorType]?.color || "#f59e0b";
+          const cR = 36;
+          // Average influence of all sub-nodes as the central score
+          const avgInf = nodes.length > 0
+            ? nodes.reduce((s, n) => s + (influence?.[n.label] ?? 0.5), 0) / nodes.length
+            : 0.5;
+          const cWords = (factorLabel || "").split(" ");
+          const cLines = []; let cCur = "";
+          cWords.forEach(w => {
+            if ((cCur + " " + w).trim().length <= 16) { cCur = (cCur + " " + w).trim(); }
+            else { if (cCur) cLines.push(cCur); cCur = w; }
+          });
+          if (cCur) cLines.push(cCur);
+          return (
+            <g
+              onMouseDown={e => handleMouseDown(e, CENTER_ID)}
+              onMouseEnter={ev => setTooltip({ x: ev.clientX, y: ev.clientY, text: `${factorLabel} \u00b7 centrale factor \u00b7 gem. ${(avgInf * 100).toFixed(0)}%` })}
+              onMouseLeave={() => setTooltip(null)}
+              style={{ pointerEvents: "all", cursor: "grab" }}
+            >
+              {/* Outer glow ring */}
+              <circle cx={cp.x} cy={cp.y} r={cR + 10} fill={cCol} opacity={0.12} />
+              <circle
+                cx={cp.x} cy={cp.y} r={cR}
+                fill={cCol} fillOpacity={0.93}
+                stroke="rgba(255,255,255,0.3)" strokeWidth={2}
+                filter="url(#sol-glow)"
+              />
+              {/* Percentage inside */}
+              <text x={cp.x} y={cp.y} textAnchor="middle" dominantBaseline="central"
+                fontFamily="sans-serif" fontSize={14} fontWeight="700" fill="#ffffff"
+                style={{ pointerEvents: "none", userSelect: "none" }}>
+                {(avgInf * 100).toFixed(0)}%
+              </text>
+              {/* Label below */}
+              <text textAnchor="middle" fontFamily="sans-serif" fontSize={11} fontWeight="600" fill="#e2e8f0"
+                style={{ pointerEvents: "none", userSelect: "none" }}>
+                {cLines.map((l, li) => (
+                  <tspan key={li} x={cp.x} y={cp.y + cR + 14 + li * 13}>{l}</tspan>
+                ))}
+              </text>
+            </g>
+          );
+        })()}
+
         {/* Nodes */}
         {nodes.map(n => {
           const p = positions[n.id];
           if (!p) return null;
-          const t = SOLUTION_TYPES[n.type] || { color: "#64748b", label: n.type };
+          const t = TYPE_MAP[n.type] || ALL_TYPES[n.type] || { color: "#64748b", label: n.type };
           const inf = influence?.[n.label] ?? 0.5;
-          const r = 8 + inf * 20;
+          const r = 12 + inf * 22;
 
           const words = n.label.split(" ");
           const lines = [];
@@ -142,6 +276,14 @@ function SolutionGraph({ nodes, edges, influence }) {
                 stroke="rgba(255,255,255,0.25)" strokeWidth={1.5}
                 filter="url(#sol-glow)"
               />
+              {/* Percentage centered inside the circle */}
+              <text x={p.x} y={p.y} textAnchor="middle" dominantBaseline="central"
+                fontFamily="sans-serif" fontSize={Math.max(8, Math.min(13, r * 0.6))}
+                fontWeight="700" fill={pctColor}
+                style={{ pointerEvents: "none", userSelect: "none" }}>
+                {(inf * 100).toFixed(0)}%
+              </text>
+              {/* Label below the circle */}
               <text
                 textAnchor="middle"
                 fontFamily="sans-serif"
@@ -152,9 +294,6 @@ function SolutionGraph({ nodes, edges, influence }) {
                 {lines.map((l, li) => (
                   <tspan key={li} x={p.x} y={p.y + r + 12 + li * 11}>{l}</tspan>
                 ))}
-                <tspan x={p.x} y={p.y + r + 12 + lines.length * 11} fontSize={8} fill={t.color} opacity={0.9} fontWeight="600">
-                  {(inf * 100).toFixed(0)}%
-                </tspan>
               </text>
             </g>
           );
@@ -179,20 +318,51 @@ function SolutionGraph({ nodes, edges, influence }) {
         borderRadius: 8, padding: "10px 14px", fontSize: 10, color: "#475569", userSelect: "none"
       }}>
         <div style={{ marginBottom: 7, color: "#64748b", fontWeight: 600, letterSpacing: 0.5, fontSize: 9, textTransform: "uppercase" }}>Legenda</div>
-        {Object.entries(SOLUTION_TYPES).map(([key, { label, color }]) => (
+        {Object.entries(TYPE_MAP).map(([key, { label, color }]) => (
           <div key={key} style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 5 }}>
             <div style={{ width: 9, height: 9, borderRadius: "50%", background: color, flexShrink: 0 }} />
             <span>{label}</span>
           </div>
         ))}
       </div>
-    </div>
+    </>
   );
 }
 
-export default function SolutionTabPanel({ sub, problem, apiKey, onMergeToggle, onVisibleToggle, onClose }) {
+export default function SolutionTabPanel({ sub, problem, apiKey, onMergeToggle, onVisibleToggle, onClose, onReanalyse }) {
   const [innerTab, setInnerTab] = useState("network");
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [screenshotting, setScreenshotting] = useState(false);
+  const networkContainerRef = useRef(null);
+  const analysisContainerRef = useRef(null);
+
+  const takeScreenshot = async () => {
+    const ref = innerTab === "network" ? networkContainerRef : analysisContainerRef;
+    if (!ref.current) return;
+    setScreenshotting(true);
+    try {
+      if (!window.html2canvas) {
+        await new Promise((res, rej) => {
+          const s = document.createElement("script");
+          s.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
+          s.onload = res; s.onerror = rej;
+          document.head.appendChild(s);
+        });
+      }
+      const canvas = await window.html2canvas(ref.current, {
+        backgroundColor: "#080d1a", scale: 2,
+        useCORS: true, allowTaint: true, logging: false,
+      });
+      const a = document.createElement("a");
+      const slug = sub.factorLabel.slice(0, 30).replace(/\s+/g, "_");
+      a.href = canvas.toDataURL("image/png");
+      a.download = `CausalNet_${innerTab}_${slug}_${new Date().toISOString().slice(0, 10)}.png`;
+      a.click();
+    } catch (e) {
+      alert("Screenshot mislukt: " + e.message);
+    }
+    setScreenshotting(false);
+  };
 
   if (!sub) return null;
 
@@ -202,14 +372,18 @@ export default function SolutionTabPanel({ sub, problem, apiKey, onMergeToggle, 
     interventie: "#10b981", beleid: "#8b5cf6", omgeving: "#f97316", gedrag: "#06b6d4",
   };
   const factorColor = typeColors[sub.factorType] || "#64748b";
+  const isProblems = sub.analysisMode === "problems";
+  const modeLabel  = isProblems ? "oorzaken" : "oplossingen";
+  const modeEmoji  = isProblems ? "🔎" : "🔍";
+  const modeAccent = isProblems ? "#60a5fa" : "#f59e0b";
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", background: "#080d1a" }}>
       {/* Header */}
       <div style={{
         padding: "12px 16px",
-        background: "rgba(245,158,11,0.04)",
-        borderBottom: "1px solid rgba(245,158,11,0.12)",
+        background: isProblems ? "rgba(96,165,250,0.04)" : "rgba(245,158,11,0.04)",
+        borderBottom: `1px solid ${modeAccent}22`,
         display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap"
       }}>
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -219,43 +393,55 @@ export default function SolutionTabPanel({ sub, problem, apiKey, onMergeToggle, 
               background: factorColor + "22", color: factorColor, border: `1px solid ${factorColor}44`,
               fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5, flexShrink: 0
             }}>
-              {sub.factorType}
+              {ALL_TYPES[sub.factorType]?.label || sub.factorType}
             </span>
             <span style={{ fontSize: 13, color: "#e2e8f0", fontWeight: 600 }}>
-              🔍 Oplossingen voor: {sub.factorLabel}
+              {modeEmoji} {isProblems ? "Oorzaken van" : "Oplossingen voor"}: {sub.factorLabel}
             </span>
           </div>
           {sub.analysed && (
             <div style={{ fontSize: 10, color: "#475569" }}>
-              {sub.nodes.length} oplossingen · {sub.edges.length} correlaties
+              {sub.nodes.length} {modeLabel} · {sub.edges.length} correlaties
             </div>
           )}
         </div>
 
         {/* Export controls */}
-        {sub.analysed && sub.report && (
+        {sub.analysed && (
           <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
+            {/* Screenshot button — always available when analysed */}
             <button
-              onClick={async () => {
-                setPdfLoading(true);
-                try { await exportAnalysisPdfWhite(sub.report, `Oplossingen: ${sub.factorLabel}`); }
-                catch (e) { alert("PDF mislukt: " + e.message); }
-                setPdfLoading(false);
-              }}
-              disabled={pdfLoading}
-              style={{ padding: "5px 10px", background: "rgba(96,165,250,0.1)", border: "1px solid rgba(96,165,250,0.25)", borderRadius: 7, color: "#60a5fa", fontSize: 10, cursor: pdfLoading ? "wait" : "pointer" }}
+              onClick={takeScreenshot}
+              disabled={screenshotting}
+              title={`Screenshot van ${innerTab === "network" ? "netwerk" : "analyse"}`}
+              style={{ padding: "5px 10px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 7, color: "#64748b", fontSize: 10, cursor: screenshotting ? "wait" : "pointer", display: "flex", alignItems: "center", gap: 4 }}
             >
-              {pdfLoading ? "⏳" : "📄"} PDF (wit)
+              {screenshotting ? "⏳" : "📷"} Screenshot
             </button>
-            <button
-              onClick={() => {
-                try { exportAnalysisWord(sub.report, `Oplossingen: ${sub.factorLabel}`); }
-                catch (e) { alert("Word export mislukt: " + e.message); }
-              }}
-              style={{ padding: "5px 10px", background: "rgba(52,211,153,0.1)", border: "1px solid rgba(52,211,153,0.25)", borderRadius: 7, color: "#34d399", fontSize: 10, cursor: "pointer" }}
-            >
-              📝 Word
-            </button>
+            {sub.report && (<>
+              <button
+                onClick={async () => {
+                  setPdfLoading(true);
+                  const title = isProblems ? `Oorzaken: ${sub.factorLabel}` : `Oplossingen: ${sub.factorLabel}`;
+                  try { await exportAnalysisPdfWhite(sub.report, title); }
+                  catch (e) { alert("PDF mislukt: " + e.message); }
+                  setPdfLoading(false);
+                }}
+                disabled={pdfLoading}
+                style={{ padding: "5px 10px", background: "rgba(96,165,250,0.1)", border: "1px solid rgba(96,165,250,0.25)", borderRadius: 7, color: "#60a5fa", fontSize: 10, cursor: pdfLoading ? "wait" : "pointer" }}
+              >
+                {pdfLoading ? "⏳" : "📄"} PDF (wit)
+              </button>
+              <button
+                onClick={() => {
+                  try { exportAnalysisWord(sub.report, isProblems ? `Oorzaken: ${sub.factorLabel}` : `Oplossingen: ${sub.factorLabel}`); }
+                  catch (e) { alert("Word export mislukt: " + e.message); }
+                }}
+                style={{ padding: "5px 10px", background: "rgba(52,211,153,0.1)", border: "1px solid rgba(52,211,153,0.25)", borderRadius: 7, color: "#34d399", fontSize: 10, cursor: "pointer" }}
+              >
+                📝 Word
+              </button>
+            </>)}
           </div>
         )}
 
@@ -289,34 +475,38 @@ export default function SolutionTabPanel({ sub, problem, apiKey, onMergeToggle, 
           </div>
         )}
 
-        <button
-          onClick={onClose}
-          style={{
-            padding: "4px 8px", background: "none", border: "1px solid rgba(255,255,255,0.1)",
-            borderRadius: 6, color: "#475569", fontSize: 14, cursor: "pointer", flexShrink: 0
-          }}
-        >
-          ×
-        </button>
       </div>
 
       {/* Inner tabs */}
       {sub.analysed && (
-        <div style={{ display: "flex", borderBottom: "1px solid rgba(255,255,255,0.05)", padding: "0 16px" }}>
+        <div style={{ display: "flex", borderBottom: "1px solid rgba(255,255,255,0.05)", padding: "0 16px", alignItems: "center" }}>
           {[["network", "🕸 Netwerk"], ["analysis", "📋 Analyse"]].map(([key, label]) => (
             <button
               key={key}
               onClick={() => setInnerTab(key)}
               style={{
                 padding: "10px 16px", background: "none", border: "none",
-                borderBottom: `2px solid ${innerTab === key ? "#f59e0b" : "transparent"}`,
-                color: innerTab === key ? "#f59e0b" : "#334155",
+                borderBottom: `2px solid ${innerTab === key ? modeAccent : "transparent"}`,
+                color: innerTab === key ? modeAccent : "#94a3b8",
                 fontSize: 12, cursor: "pointer", marginBottom: -1
               }}
             >
               {label}
             </button>
           ))}
+          {onReanalyse && (
+            <button
+              onClick={() => setInnerTab(innerTab === "reanalyse" ? "network" : "reanalyse")}
+              style={{
+                padding: "10px 16px", background: "none", border: "none",
+                borderBottom: `2px solid ${innerTab === "reanalyse" ? modeAccent : "transparent"}`,
+                color: innerTab === "reanalyse" ? modeAccent : "#94a3b8",
+                fontSize: 12, cursor: "pointer", marginBottom: -1
+              }}
+            >
+              🔄 Heranalyse
+            </button>
+          )}
         </div>
       )}
 
@@ -327,7 +517,7 @@ export default function SolutionTabPanel({ sub, problem, apiKey, onMergeToggle, 
           <div style={{ padding: 24 }}>
             <div style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 10, padding: 16, marginBottom: 18 }}>
               <div style={{ fontSize: 12, color: "#64748b", fontWeight: 600, marginBottom: 12, textTransform: "uppercase", letterSpacing: 0.5 }}>
-                Oplossingen analyseren voor "{sub.factorLabel}"…
+                {isProblems ? "Oorzaken" : "Oplossingen"} analyseren voor "{sub.factorLabel}"…
               </div>
               {sub.steps.map((st, i) => (
                 <div key={st.id || i} style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 8 }}>
@@ -356,10 +546,10 @@ export default function SolutionTabPanel({ sub, problem, apiKey, onMergeToggle, 
           </div>
         )}
 
-        {/* Network tab */}
-        {sub.analysed && innerTab === "network" && sub.nodes.length > 0 && (
-          <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at center,#0d1630,#080d1a)" }}>
-            <SolutionGraph nodes={sub.nodes} edges={sub.edges} influence={sub.influence} />
+        {/* Network tab — always mounted once analysed so ResizeObserver settles before first view */}
+        {sub.analysed && sub.nodes.length > 0 && (
+          <div ref={networkContainerRef} style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at center,#0d1630,#080d1a)", display: innerTab === "network" ? "block" : "none" }}>
+            <SolutionGraph nodes={sub.nodes} edges={sub.edges} influence={sub.influence} factorLabel={sub.factorLabel} factorType={sub.factorType} isProblems={isProblems} />
           </div>
         )}
 
@@ -372,14 +562,14 @@ export default function SolutionTabPanel({ sub, problem, apiKey, onMergeToggle, 
 
         {/* Analysis tab */}
         {sub.analysed && innerTab === "analysis" && (
-          <div style={{ position: "absolute", inset: 0, overflow: "auto", padding: 24 }}>
+          <div ref={analysisContainerRef} style={{ position: "absolute", inset: 0, overflow: "auto", padding: 24 }}>
             {/* Influence scores chart */}
             {sub.nodes.length > 0 && (
               <div style={{ marginBottom: 24, padding: 14, background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 10 }}>
-                <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: 1, color: "#475569", marginBottom: 10 }}>Effectiviteitsscores oplossingen</div>
+                <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: 1, color: "#475569", marginBottom: 10 }}>{isProblems ? "Bijdrage van oorzaken" : "Effectiviteitsscores oplossingen"}</div>
                 {[...sub.nodes].sort((a, b) => (sub.influence?.[b.label] || 0) - (sub.influence?.[a.label] || 0)).map(n => {
                   const inf = sub.influence?.[n.label] ?? 0;
-                  const col = SOLUTION_TYPES[n.type]?.color || "#64748b";
+                  const col = (isProblems ? PROBLEM_TYPES : SOLUTION_TYPES)[n.type]?.color || "#64748b";
                   return (
                     <div key={n.id} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 7 }}>
                       <div style={{ width: 8, height: 8, borderRadius: "50%", background: col, flexShrink: 0 }} />
@@ -393,7 +583,7 @@ export default function SolutionTabPanel({ sub, problem, apiKey, onMergeToggle, 
                 })}
                 {/* Legenda */}
                 <div style={{ marginTop: 12, paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.05)", display: "flex", flexWrap: "wrap", gap: "6px 16px" }}>
-                  {Object.entries(SOLUTION_TYPES).map(([k, v]) => (
+                  {Object.entries(isProblems ? PROBLEM_TYPES : SOLUTION_TYPES).map(([k, v]) => (
                     <div key={k} style={{ display: "flex", alignItems: "center", gap: 5 }}>
                       <div style={{ width: 8, height: 8, borderRadius: "50%", background: v.color, flexShrink: 0 }} />
                       <span style={{ fontSize: 10, color: "#475569" }}>{v.label}</span>
@@ -407,6 +597,20 @@ export default function SolutionTabPanel({ sub, problem, apiKey, onMergeToggle, 
             ) : (
               <div style={{ color: "#334155", fontSize: 13 }}>Geen analyse beschikbaar.</div>
             )}
+          </div>
+        )}
+
+        {/* Heranalyse tab */}
+        {sub.analysed && innerTab === "reanalyse" && onReanalyse && (
+          <div style={{ position: "absolute", inset: 0 }}>
+            <SubReanalysePanel
+              sub={sub}
+              onExecute={(cfg) => {
+                setInnerTab("network");
+                onReanalyse(cfg);
+              }}
+              onCancel={() => setInnerTab("network")}
+            />
           </div>
         )}
       </div>

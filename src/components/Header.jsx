@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 
 export default function Header({ phase, problem, uploadedDocs, analysed, apiKey, setApiKey, onReset, onSave, onLoad }) {
   const [showApiKey, setShowApiKey] = useState(false);
   const [showKeyInput, setShowKeyInput] = useState(false);
-  const loadInputRef = useState(() => typeof document !== "undefined" ? document.createElement("input") : null)[0];
+  const [confirmReset, setConfirmReset] = useState(false);
+  const fileInputRef = useRef(null);
 
   const lsSet = (key, val) => { try { localStorage.setItem(key, val); } catch {} };
   const lsRemove = (key) => { try { localStorage.removeItem(key); } catch {} };
@@ -18,22 +19,22 @@ export default function Header({ phase, problem, uploadedDocs, analysed, apiKey,
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        {phase !== "problem" && problem && <span style={{ fontSize: 11, color: "#334155", maxWidth: 260, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{"\ud83d\udccc"} {problem}</span>}
+        {phase !== "problem" && problem && <span style={{ fontSize: 11, color: "#94a3b8", maxWidth: 260, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{"\ud83d\udccc"} {problem}</span>}
         {uploadedDocs.length > 0 && <span style={{ fontSize: 10, padding: "2px 8px", background: "rgba(96,165,250,0.1)", border: "1px solid rgba(96,165,250,0.25)", borderRadius: 10, color: "#60a5fa" }}>{"\ud83d\udcc4"} {uploadedDocs.length} doc{uploadedDocs.length > 1 ? "s" : ""}</span>}
         {analysed && <span style={{ fontSize: 10, padding: "2px 8px", background: "rgba(52,211,153,0.1)", border: "1px solid rgba(52,211,153,0.2)", borderRadius: 10, color: "#34d399" }}>{"\u25cf"} Gewogen netwerk</span>}
-        {/* Load button — always visible */}
-        <button title="Analyse laden (.causalnet bestand)"
-          onClick={() => {
-            if (loadInputRef) {
-              loadInputRef.type = "file";
-              loadInputRef.accept = ".causalnet,.json";
-              loadInputRef.onchange = (e) => { onLoad(e.target.files[0]); loadInputRef.value = ""; };
-              loadInputRef.click();
-            }
-          }}
-          style={{ padding: "5px 10px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 7, color: "#475569", fontSize: 11, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
-          📂 Laden
-        </button>
+        {/* Hidden file input — rendered in DOM for reliability */}
+        <input ref={fileInputRef} type="file"
+          style={{ display: "none" }}
+          onChange={(e) => { if (e.target.files[0]) { onLoad(e.target.files[0]); e.target.value = ""; } }} />
+
+        {/* Load button — only when not on start screen */}
+        {phase !== "problem" && (
+          <button title="Analyse laden (.causalnet bestand)"
+            onClick={() => fileInputRef.current?.click()}
+            style={{ padding: "5px 10px", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.14)", borderRadius: 7, color: "#94a3b8", fontSize: 11, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
+            📂 Laden
+          </button>
+        )}
 
         {/* Save button — only when there is an analysis */}
         {analysed && (
@@ -44,7 +45,36 @@ export default function Header({ phase, problem, uploadedDocs, analysed, apiKey,
           </button>
         )}
 
-        {phase !== "problem" && <button onClick={onReset} style={{ padding: "5px 12px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 7, color: "#475569", fontSize: 11, cursor: "pointer" }}>&larr; Nieuw onderwerp</button>}
+        {phase !== "problem" && <button onClick={() => analysed ? setConfirmReset(true) : onReset()} style={{ padding: "5px 12px", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.14)", borderRadius: 7, color: "#94a3b8", fontSize: 11, cursor: "pointer" }}>&larr; Nieuw onderwerp</button>}
+
+        {confirmReset && (
+          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000 }}
+            onClick={() => setConfirmReset(false)}>
+            <div onClick={e => e.stopPropagation()}
+              style={{ background: "#0f172a", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: 24, maxWidth: 460, boxShadow: "0 12px 40px rgba(0,0,0,0.6)" }}>
+              <div style={{ fontSize: 16, color: "#f1f5f9", marginBottom: 10, fontWeight: 600 }}>
+                ⚠️ Nieuw onderwerp starten?
+              </div>
+              <div style={{ fontSize: 13, color: "#94a3b8", lineHeight: 1.5, marginBottom: 18 }}>
+                Alle data van de huidige analyse (factoren, gewichten, rapporten en sub-analyses) gaat verloren. Wil je eerst de analyse opslaan?
+              </div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                <button onClick={() => setConfirmReset(false)}
+                  style={{ padding: "7px 14px", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.14)", borderRadius: 7, color: "#94a3b8", fontSize: 12, cursor: "pointer" }}>
+                  Annuleren
+                </button>
+                <button onClick={() => { setConfirmReset(false); onReset(); }}
+                  style={{ padding: "7px 14px", background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 7, color: "#f87171", fontSize: 12, cursor: "pointer" }}>
+                  Doorgaan zonder opslaan
+                </button>
+                <button onClick={() => { onSave(); setConfirmReset(false); onReset(); }}
+                  style={{ padding: "7px 14px", background: "linear-gradient(135deg,#34d399,#10b981)", border: "none", borderRadius: 7, color: "#052e1f", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                  💾 Eerst opslaan
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div style={{ position: "relative" }}>
           <button onClick={() => setShowKeyInput(v => !v)}

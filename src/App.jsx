@@ -2,6 +2,7 @@ import { useState, useRef, useCallback } from "react";
 import { TYPES, uid } from "./constants";
 import { apiUrl, apiHeaders, callAPI } from "./api";
 import { runSolutionAnalysis } from "./utils/solutionAnalysis";
+import { runProblemAnalysis } from "./utils/problemAnalysis";
 import useForceLayout from "./hooks/useForceLayout";
 import { extractSourcesFromReport, readFile, fetchUrl } from "./utils/sources";
 import { verifyDoiLinks } from "./utils/verifyDoi";
@@ -12,7 +13,7 @@ import SuggestionPanel from "./components/SuggestionPanel";
 import SourcesPhase from "./components/SourcesPhase";
 import ReanalysePhase from "./components/ReanalysePhase";
 import NetworkPhase from "./components/NetworkPhase";
-import ScreenshotModal from "./components/ScreenshotModal";
+
 
 export default function App() {
   const networkPanelRef = useRef(null);
@@ -20,7 +21,6 @@ export default function App() {
   const analysisPanelRef = useRef(null);
 
   const [screenshotting, setScreenshotting] = useState(false);
-  const [screenshot, setScreenshot] = useState(null);
   const [apiKey, setApiKey] = useState(() => {
     try { return localStorage.getItem("causalnet_apikey") || ""; } catch { return ""; }
   });
@@ -67,7 +67,7 @@ export default function App() {
   const [netW, setNetW] = useState(900);
   const [netH, setNetH] = useState(600);
   const handleNetResize = useCallback((w, h) => { setNetW(w); setNetH(h); }, []);
-  const { positions, posRef, onDragNode } = useForceLayout(nodes, edges, influence, netW, netH);
+  const { positions, posRef, onDragNode, skipPlacementRef } = useForceLayout(nodes, edges, influence, netW, netH);
 
   const takeScreenshot = async (ref, filename) => {
     if (!ref.current) return;
@@ -85,7 +85,10 @@ export default function App() {
         backgroundColor: "#080d1a", scale: 2,
         useCORS: true, allowTaint: true, logging: false,
       });
-      setScreenshot({ dataUrl: canvas.toDataURL("image/png"), name: filename + "_" + new Date().toISOString().slice(0, 10) + ".png" });
+      const a = document.createElement("a");
+      a.href = canvas.toDataURL("image/png");
+      a.download = filename + "_" + new Date().toISOString().slice(0, 10) + ".png";
+      a.click();
     } catch (e) {
       alert("Screenshot mislukt: " + e.message);
     }
@@ -144,7 +147,7 @@ export default function App() {
   // ── Save / Load ──────────────────────────────────────────────────────────
   const saveAnalysis = () => {
     const data = {
-      version: "1.0",
+      version: "1.1",
       savedAt: new Date().toISOString(),
       problem,
       nodes,
@@ -154,6 +157,13 @@ export default function App() {
       analysed,
       positions: posRef.current,
       supplementSections,
+      subAnalyses: (subAnalyses || []).map(s => ({
+        id: s.id, factorId: s.factorId, factorLabel: s.factorLabel,
+        factorType: s.factorType, analysisMode: s.analysisMode,
+        nodes: s.nodes, edges: s.edges, influence: s.influence,
+        report: s.report, analysed: s.analysed, merged: s.merged,
+        subVisible: s.subVisible, nodePositions: s.nodePositions || {},
+      })),
       uploadedDocs: uploadedDocs.map(d => ({ id: d.id, name: d.name, size: d.size, url: d.url || null, text: d.text })),
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
@@ -161,27 +171,46 @@ export default function App() {
     const a = document.createElement("a");
     const slug = problem.slice(0, 40).replace(/[^a-z0-9]/gi, "_").toLowerCase();
     a.href = url;
-    a.download = `causalnet_${slug}_${new Date().toISOString().slice(0, 10)}.causalnet`;
+    a.download = `causalnet_${slug}_${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
   };
 
   const loadAnalysis = (file) => {
     if (!file) return;
+    const name = file.name?.toLowerCase() || "";
+    if (!name.endsWith(".causalnet") && !name.endsWith(".json") && !name.endsWith(".txt")) {
+      alert(`Ongeldig bestandstype: "${file.name}"\n\nKies een .json bestand dat eerder via de Opslaan-knop is opgeslagen.`);
+      return;
+    }
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
         const data = JSON.parse(e.target.result);
-        if (!data.nodes || !data.problem) throw new Error("Ongeldig bestand");
-        setProblem(data.problem || "");
-        setNodes(data.nodes || []);
+        if (!data.problem && !data.nodes) throw new Error("Dit lijkt geen CausalNet analysebestand te zijn. Kies een .causalnet of .json bestand dat eerder is opgeslagen.");
+        const loadedNodes = data.nodes || [];
+        const loadedInfluence = data.influence || null;
+
+        // Pre-seed posRef before nodes are set so useForceLayout skips reset
+        if (data.positions && Object.keys(data.positions).length > 0) {
+          posRef.current = data.positions;
+          skipPlacementRef.current = true; // signal useForceLayout to keep these positions
+        }
+
+        setProblem(data.problem);
+        setNodes(loadedNodes);
         setEdges(data.edges || []);
-        setInfluence(data.influence || null);
+        setInfluence(loadedInfluence);
         setReport(data.report || "");
         setAnalysed(data.analysed || false);
         setSupplementSections(data.supplementSections || []);
         setUploadedDocs(data.uploadedDocs || []);
-        if (data.positions) posRef.current = data.positions;
+        setSubAnalyses((data.subAnalyses || []).map(s => ({
+          ...s,
+          steps: [],
+          error: null,
+        })));
+        setActiveMainTab("main");
         setTab("graph");
         setPhase("network");
       } catch (err) {
@@ -466,12 +495,13 @@ export default function App() {
     setSupplementSections(prev => [...prev, { source: sourceText, text }]);
   };
 
-  const startSolutionAnalysis = async (node) => {
-    const id = `sol_${uid()}`;
+  const startSubAnalysis = async (node, mode) => {
+    const id = `${mode}_${uid()}`;
     const newSub = {
       id, factorId: node.id, factorLabel: node.label, factorType: node.type,
+      analysisMode: mode, // "solutions" | "problems"
       nodes: [], edges: [], influence: {}, report: "", analysed: false,
-      steps: [], error: null, merged: false, subVisible: true
+      steps: [], error: null, merged: false, subVisible: true, nodePositions: {}
     };
     setSubAnalyses(prev => [...prev, newSub]);
     setActiveMainTab(id);
@@ -485,7 +515,8 @@ export default function App() {
       ? { ...s, steps: s.steps.map((st, i) => i === s.steps.length - 1 ? { ...st, txt: msg } : st) } : s));
 
     try {
-      const result = await runSolutionAnalysis({
+      const runner = mode === "problems" ? runProblemAnalysis : runSolutionAnalysis;
+      const result = await runner({
         factor: node, problem, apiKey,
         onStep: addSubStep, onStepDone: doneSubStep, onStepUpdate: updateSubStep
       });
@@ -495,8 +526,51 @@ export default function App() {
     }
   };
 
+  const startSolutionAnalysis = (node) => startSubAnalysis(node, "solutions");
+  const startProblemAnalysis  = (node) => startSubAnalysis(node, "problems");
+
+  const rerunSubAnalysis = async (subId, { sources, customNodes, sourceMode }) => {
+    const sub = subAnalyses.find(s => s.id === subId);
+    if (!sub) return;
+
+    // Reset this sub's analysis state in place (keep same id/tab)
+    const resetSub = {
+      nodes: [], edges: [], influence: {}, report: "",
+      analysed: false, steps: [], error: null, nodePositions: {}
+    };
+    setSubAnalyses(prev => prev.map(s => s.id === subId ? { ...s, ...resetSub } : s));
+
+    const updateSub   = upd => setSubAnalyses(prev => prev.map(s => s.id === subId ? { ...s, ...upd } : s));
+    const addSubStep  = txt => setSubAnalyses(prev => prev.map(s => s.id === subId
+      ? { ...s, steps: [...s.steps, { id: uid(), txt, done: false }] } : s));
+    const doneSubStep = ()  => setSubAnalyses(prev => prev.map(s => s.id === subId
+      ? { ...s, steps: s.steps.map((st, i) => i === s.steps.length - 1 ? { ...st, done: true } : st) } : s));
+    const updateSubStep = msg => setSubAnalyses(prev => prev.map(s => s.id === subId
+      ? { ...s, steps: s.steps.map((st, i) => i === s.steps.length - 1 ? { ...st, txt: msg } : st) } : s));
+
+    const factor = { id: sub.factorId, label: sub.factorLabel, type: sub.factorType };
+    const runner = sub.analysisMode === "problems" ? runProblemAnalysis : runSolutionAnalysis;
+
+    try {
+      const result = await runner({
+        factor, problem, apiKey,
+        onStep: addSubStep, onStepDone: doneSubStep, onStepUpdate: updateSubStep,
+        extraSources: sources,
+        requiredNodes: customNodes,
+        sourceMode,
+      });
+      updateSub({ ...result, analysed: true });
+    } catch (e) {
+      updateSub({ error: e.message });
+    }
+  };
+
   const toggleSubMerge = (id) => setSubAnalyses(prev => prev.map(s => s.id === id ? { ...s, merged: !s.merged } : s));
   const toggleSubVisible = (id) => setSubAnalyses(prev => prev.map(s => s.id === id ? { ...s, subVisible: !s.subVisible } : s));
+  const handleDragSubNode = (factorId, nodeId, x, y) =>
+    setSubAnalyses(prev => prev.map(s => s.factorId === factorId
+      ? { ...s, nodePositions: { ...(s.nodePositions || {}), [nodeId]: { x, y } } }
+      : s));
   const closeSubAnalysis = (id) => {
     setSubAnalyses(prev => prev.filter(s => s.id !== id));
     if (activeMainTab === id) setActiveMainTab("main");
@@ -514,15 +588,14 @@ export default function App() {
     <div style={{ height: "100vh", background: "#080d1a", color: "#e2e8f0", fontFamily: "sans-serif", display: "flex", flexDirection: "column" }}>
       <style>{"@keyframes spin{to{transform:rotate(360deg)}}"}</style>
 
-      <ScreenshotModal screenshot={screenshot} onClose={() => setScreenshot(null)} />
-
       <Header phase={phase} problem={problem} uploadedDocs={uploadedDocs} analysed={analysed}
         apiKey={apiKey} setApiKey={setApiKey} onReset={resetAll}
         onSave={saveAnalysis} onLoad={loadAnalysis} />
 
       {phase === "problem" && (
         <ProblemPhase problem={problem} setProblem={setProblem} apiKey={apiKey}
-          sugLoading={sugLoading} sugError={sugError} onGenerate={generateSuggestions} />
+          sugLoading={sugLoading} sugError={sugError} onGenerate={generateSuggestions}
+          onLoad={loadAnalysis} />
       )}
 
       {phase === "suggestions" && (
@@ -591,7 +664,10 @@ export default function App() {
           fullPanelRef={fullPanelRef} networkPanelRef={networkPanelRef} analysisPanelRef={analysisPanelRef}
           subAnalyses={subAnalyses} activeMainTab={activeMainTab} setActiveMainTab={setActiveMainTab}
           onSolutionAnalyse={startSolutionAnalysis}
-          onMergeToggle={toggleSubMerge} onVisibleToggle={toggleSubVisible} onCloseSubTab={closeSubAnalysis} />
+          onProblemAnalyse={startProblemAnalysis}
+          onMergeToggle={toggleSubMerge} onVisibleToggle={toggleSubVisible} onCloseSubTab={closeSubAnalysis}
+          onDragSubNode={handleDragSubNode}
+          onRerunSubAnalysis={rerunSubAnalysis} />
       )}
     </div>
   );

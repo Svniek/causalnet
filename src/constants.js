@@ -5,6 +5,13 @@ export const SOLUTION_TYPES = {
   gedrag:      { label: "Gedragsverandering", color: "#06b6d4" },
 };
 
+export const PROBLEM_TYPES = {
+  onderliggend: { label: "Onderliggende oorzaak", color: "#dc2626" },
+  versterkend:  { label: "Versterkende oorzaak",  color: "#f97316" },
+  trigger:      { label: "Trigger",               color: "#eab308" },
+  structureel:  { label: "Structurele oorzaak",   color: "#a855f7" },
+};
+
 export const TYPES = {
   maingoal:   { label: "Hoofddoel",           color: "#f59e0b" },
   goal:       { label: "Doel",                color: "#34d399" },

@@ -3,7 +3,7 @@ import { uid } from "../constants";
 import { searchPapersForFactors, formatPapersForPrompt } from "./semanticScholar";
 import { verifyDoiLinks } from "./verifyDoi";
 
-export const runSolutionAnalysis = async ({ factor, problem, apiKey, onStep, onStepDone, onStepUpdate, extraSources = [], requiredNodes = [], sourceMode = "both" }) => {
+export const runProblemAnalysis = async ({ factor, problem, apiKey, onStep, onStepDone, onStepUpdate, extraSources = [], requiredNodes = [], sourceMode = "both" }) => {
   // Step 1: Search Semantic Scholar for papers (skip if sourceMode === "own")
   onStep("Relevante papers zoeken voor factor: " + factor.label + "…");
   let papers = [];
@@ -22,18 +22,16 @@ export const runSolutionAnalysis = async ({ factor, problem, apiKey, onStep, onS
   }
 
   // Step 2: Call 1 — report
-  onStep("Wetenschappelijke oplossingen analyseren…");
+  onStep("Onderliggende oorzaken en problemen analyseren…");
   const papersPrompt = formatPapersForPrompt(papers);
 
-  // Extra sources from user (re-analysis)
   const extraSourcesPrompt = extraSources.length > 0
     ? `\n\n## Door gebruiker geselecteerde bronnen (verplicht opnemen):\n` +
       extraSources.map((s, i) => `${i + 1}. ${s.text}${s.url ? " — " + s.url : ""}`).join("\n")
     : "";
 
-  // Required nodes hint
   const requiredNodesPrompt = requiredNodes.length > 0
-    ? `\n\n## Verplicht te bespreken ${factor.type === "solutions" ? "oplossingen" : "factoren"} (neem deze zeker op):\n` +
+    ? `\n\n## Verplicht te bespreken oorzaken (neem deze zeker op):\n` +
       requiredNodes.map(n => `- ${n.label} (type: ${n.type})`).join("\n")
     : "";
 
@@ -45,14 +43,15 @@ export const runSolutionAnalysis = async ({ factor, problem, apiKey, onStep, onS
     `Na elke feitelijke claim of statistiek plaatst u een inline citaat tussen haakjes in dit exacte formaat:\n` +
     `([Auteur et al., jaar](https://doi.org/xxxxx))\n\n` +
     `Schrijf een wetenschappelijke analyse in het Nederlands met precies deze 4 kopjes:\n\n` +
-    `## Bewezen interventies\n` +
-    `Beschrijf 5-7 specifieke, bewezen interventies om de factor "${factor.label}" te verbeteren of aan te pakken. ` +
-    `Per interventie: wat is de interventie, wat is het mechanisme, wat is de effectgrootte, voor welke doelgroep. ` +
+    `## Oorzaken en mechanismen\n` +
+    `Beschrijf 5-7 specifieke, wetenschappelijk onderbouwde oorzaken en onderliggende mechanismen die bijdragen aan "${factor.label}". ` +
+    `Per oorzaak: wat is de oorzaak, hoe werkt het mechanisme, wat is de relatieve bijdrage, voor welke groepen is dit relevant. ` +
     `Gebruik inline citaten na elke claim. Minimaal 300 woorden.\n\n` +
-    `## Implementatieoverwegingen\n` +
-    `Bespreek praktische overwegingen bij het implementeren van deze interventies: kosten, haalbaarheid, vereiste expertise, tijdsduur. Minimaal 150 woorden.\n\n` +
-    `## Synergie tussen interventies\n` +
-    `Welke combinaties van interventies versterken elkaar? Welke volgorde is optimaal? Minimaal 100 woorden.\n\n` +
+    `## Risicogroepen en kwetsbare populaties\n` +
+    `Welke groepen zijn het meest kwetsbaar of hebben het hoogste risico in relatie tot "${factor.label}"? ` +
+    `Bespreek demografische, sociale en contextuele risicofactoren. Minimaal 150 woorden.\n\n` +
+    `## Synergie tussen oorzaken\n` +
+    `Welke oorzaken versterken elkaar (cumulatieve risicofactoren)? Welke vicieuze cirkels bestaan er? Minimaal 100 woorden.\n\n` +
     `## Wetenschappelijke bronnen\n` +
     `Geef alle geciteerde bronnen als genummerde lijst. Formatteer ELKE bron EXACT zo (op een eigen regel):\n` +
     `1. [Auteur et al. (jaar). Titel. Tijdschrift, volume(nummer), pagina's.](https://doi.org/xxxxx)`;
@@ -75,20 +74,21 @@ export const runSolutionAnalysis = async ({ factor, problem, apiKey, onStep, onS
   }
 
   // Step 3: Call 2 — JSON nodes + correlations
-  onStep("Oplossingsnetwerk genereren…");
+  onStep("Probleemnetwerk genereren…");
   const requiredJsonHint = requiredNodes.length > 0
-    ? `\nNeem deze verplichte oplossingen op (gebruik exact dezelfde labels): ${requiredNodes.map(n => `"${n.label}" (${n.type})`).join(", ")}.\n`
+    ? `\nNeem deze verplichte oorzaken op (gebruik exact dezelfde labels): ${requiredNodes.map(n => `"${n.label}" (${n.type})`).join(", ")}.\n`
     : "";
   const jsonPrompt =
     `Probleemstelling: ${problem}\n` +
     `Factor: "${factor.label}" (type: ${factor.type})\n` +
     requiredJsonHint + `\n` +
-    `Geef 5-7 concrete oplossingen/interventies voor deze factor als JSON. Gebruik EXACT dit formaat:\n` +
-    `{"solutions":[{"id":"s0","label":"max 5 woorden","type":"interventie|beleid|omgeving|gedrag","influence":0.75},...],` +
-    `"correlations":[{"from":"s0","to":"s1","correlation":0.6},...]}` +
-    `\n\nRegels:\n- label: max 5 woorden, Nederlands\n- type: ALLEEN interventie, beleid, omgeving, of gedrag\n` +
-    `- influence: 0.0-1.0 (hoe sterk is de impact op de factor)\n` +
-    `- correlations: correlaties TUSSEN oplossingen (niet verplicht, max 8)`;
+    `Geef 5-7 onderliggende oorzaken/problemen die bijdragen aan deze factor als JSON. Gebruik EXACT dit formaat:\n` +
+    `{"problems":[{"id":"p0","label":"max 5 woorden","type":"onderliggend|versterkend|trigger|structureel","influence":0.75},...],` +
+    `"correlations":[{"from":"p0","to":"p1","correlation":0.6},...]}` +
+    `\n\nRegels:\n- label: max 5 woorden, Nederlands\n` +
+    `- type: ALLEEN onderliggend (root cause), versterkend (amplifies the problem), trigger (acute triggering event/state), of structureel (structural/systemic cause)\n` +
+    `- influence: 0.0-1.0 (hoe sterk draagt deze oorzaak bij aan de factor)\n` +
+    `- correlations: correlaties TUSSEN oorzaken (niet verplicht, max 8)`;
 
   let nodes = [];
   let edges = [];
@@ -108,15 +108,14 @@ export const runSolutionAnalysis = async ({ factor, problem, apiKey, onStep, onS
     if (s !== -1 && e !== -1) {
       const parsed = JSON.parse(rawJson.slice(s, e + 1));
       const idMap = {};
+      const validTypes = ["onderliggend", "versterkend", "trigger", "structureel"];
 
-      // Map temp IDs to real UIDs
-      (parsed.solutions || []).forEach(sol => {
+      (parsed.problems || []).forEach(prob => {
         const newId = uid();
-        idMap[sol.id] = newId;
-        const solType = ["interventie", "beleid", "omgeving", "gedrag"].includes(sol.type)
-          ? sol.type : "interventie";
-        nodes.push({ id: newId, label: sol.label, type: solType });
-        influence[sol.label] = Math.max(0.1, Math.min(0.99, sol.influence || 0.5));
+        idMap[prob.id] = newId;
+        const probType = validTypes.includes(prob.type) ? prob.type : "onderliggend";
+        nodes.push({ id: newId, label: prob.label, type: probType });
+        influence[prob.label] = Math.max(0.1, Math.min(0.99, prob.influence || 0.5));
       });
 
       (parsed.correlations || []).forEach(corr => {
@@ -135,12 +134,11 @@ export const runSolutionAnalysis = async ({ factor, problem, apiKey, onStep, onS
   } catch (e) {
     onStepDone();
     console.warn("JSON parse mislukt, fallback nodes aanmaken:", e);
-    // Fallback: 4 generic nodes
     const fallbackLabels = [
-      { label: "Vroege interventie", type: "interventie", influence: 0.8 },
-      { label: "Beleidsondersteuning", type: "beleid", influence: 0.65 },
-      { label: "Omgevingsaanpassing", type: "omgeving", influence: 0.55 },
-      { label: "Gedragsverandering", type: "gedrag", influence: 0.7 },
+      { label: "Sociale isolatie", type: "onderliggend", influence: 0.8 },
+      { label: "Versterkende omgeving", type: "versterkend", influence: 0.65 },
+      { label: "Acute trigger", type: "trigger", influence: 0.7 },
+      { label: "Structurele context", type: "structureel", influence: 0.55 },
     ];
     fallbackLabels.forEach(f => {
       const id = uid();

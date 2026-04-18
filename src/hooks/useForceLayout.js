@@ -4,6 +4,8 @@ import { nodeRadius, targetDist } from "../constants";
 export default function useForceLayout(nodes, edges, influence, W, H) {
   const posRef = useRef({});
   const velRef = useRef({});
+  const centerPinRef = useRef(null);
+  const skipPlacementRef = useRef(false);
   const [, setTick] = useState(0);
   const frameRef = useRef(null);
   const iterRef = useRef(0);
@@ -20,25 +22,41 @@ export default function useForceLayout(nodes, edges, influence, W, H) {
     const centerNode = nodes.find(n => n.type === "maingoal") || nodes.find(n => n.type === "goal");
     const others = nodes.filter(n => n.id !== centerNode?.id);
 
-    // Place center node in the middle
-    if (centerNode) {
-      posRef.current[centerNode.id] = { x: w / 2, y: h / 2 };
-      velRef.current[centerNode.id] = { x: 0, y: 0 };
-    }
+    // Skip placement only when explicitly loaded from file
+    const skipPlacement = skipPlacementRef.current && nodes.every(n => posRef.current[n.id]);
+    skipPlacementRef.current = false; // clear flag after use
 
-    // Place other nodes evenly around center at their target distance
-    others.forEach((n, i) => {
-      const angle = (2 * Math.PI * i) / others.length - Math.PI / 2;
-      const dist = targetDist(influenceRef.current, n.label, w, h);
-      posRef.current[n.id] = {
-        x: w / 2 + dist * Math.cos(angle),
-        y: h / 2 + dist * Math.sin(angle)
-      };
-      velRef.current[n.id] = { x: 0, y: 0 };
-    });
+    if (!skipPlacement) {
+      // Place center node in the middle
+      if (centerNode) {
+        posRef.current[centerNode.id] = { x: w / 2, y: h / 2 };
+        velRef.current[centerNode.id] = { x: 0, y: 0 };
+      }
+
+      // Place other nodes evenly around center at their target distance
+      others.forEach((n, i) => {
+        const angle = (2 * Math.PI * i) / others.length - Math.PI / 2;
+        const dist = targetDist(influenceRef.current, n.label, w, h);
+        posRef.current[n.id] = {
+          x: w / 2 + dist * Math.cos(angle),
+          y: h / 2 + dist * Math.sin(angle)
+        };
+        velRef.current[n.id] = { x: 0, y: 0 };
+      });
+    } else {
+      // Positions loaded from file — init velocities to zero without moving nodes
+      nodes.forEach(n => { velRef.current[n.id] = { x: 0, y: 0 }; });
+    }
 
     iterRef.current = 0;
     cancelAnimationFrame(frameRef.current);
+
+    // When positions were loaded from file, skip the physics simulation entirely
+    // so the saved layout is preserved exactly. User can still drag nodes.
+    if (skipPlacement) {
+      setTick(t => t + 1);
+      return;
+    }
 
     const step = () => {
       iterRef.current++;
@@ -48,10 +66,11 @@ export default function useForceLayout(nodes, edges, influence, W, H) {
       const pos = posRef.current, vel = velRef.current;
       const inf = influenceRef.current;
 
-      // Keep center node pinned to center
+      // Keep center node pinned — either to canvas centre, or to user-set pin location
       if (centerNode && pos[centerNode.id]) {
-        pos[centerNode.id].x = curW / 2;
-        pos[centerNode.id].y = curH / 2;
+        const pin = centerPinRef.current;
+        pos[centerNode.id].x = pin ? pin.x : curW / 2;
+        pos[centerNode.id].y = pin ? pin.y : curH / 2;
       }
 
       others.forEach(a => {
@@ -110,5 +129,5 @@ export default function useForceLayout(nodes, edges, influence, W, H) {
     }
   };
 
-  return { positions: posRef.current, posRef, onDragNode };
+  return { positions: posRef.current, posRef, onDragNode, skipPlacementRef, centerPinRef };
 }

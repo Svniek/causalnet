@@ -38,7 +38,7 @@ export const callAPI = async (apiKey, messages, system, maxTokens) => {
     }
 
     if (res.status === 413) {
-      throw new Error("De PDF bestanden zijn te groot (max ~3 MB totaal). Verwijder enkele bestanden en probeer opnieuw.");
+      throw new Error("De PDF bestanden zijn te groot (max ~10 MB totaal). Verwijder enkele bestanden en probeer opnieuw.");
     }
 
     let data;
