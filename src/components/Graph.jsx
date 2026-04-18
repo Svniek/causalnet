@@ -257,6 +257,15 @@ export default function Graph({ nodes, edges, positions, selected, onSelect, inf
                     />
                     {/* Node */}
                     <circle cx={sx} cy={sy} r={snR} fill={snCol} fillOpacity={0.85} stroke="rgba(255,255,255,0.2)" strokeWidth={1} />
+                    {/* Percentage inside circle */}
+                    <text textAnchor="middle" fontFamily="sans-serif" fontSize={Math.max(7, snR * 0.55)}
+                      fontWeight="700" fill="#fff" fillOpacity={0.92}
+                      style={{ pointerEvents: "none", userSelect: "none" }}>
+                      <tspan x={sx} y={sy + Math.max(7, snR * 0.55) * 0.35}>
+                        {(snInf * 100).toFixed(0)}%
+                      </tspan>
+                    </text>
+                    {/* Label below */}
                     <text textAnchor="middle" fontFamily="sans-serif" fontSize={8} fill="#e2e8f0" style={{ pointerEvents: "none", userSelect: "none" }}>
                       {snLines.map((l, li) => (
                         <tspan key={li} x={sx} y={sy + snR + 10 + li * 10}>{l}</tspan>
