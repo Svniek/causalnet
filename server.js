@@ -1,11 +1,17 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import { readFileSync } from "fs";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-dotenv.config({ path: join(__dirname, ".env") });
+// Parse .env manually so dotenvx cannot intercept and suppress the variables
+try {
+  const envContent = readFileSync(join(__dirname, ".env"), "utf8");
+  const parsed = dotenv.parse(envContent);
+  Object.assign(process.env, parsed);
+} catch (_) {}
 
 const app = express();
 const PORT = 3001;
