@@ -13,6 +13,7 @@ Bedoeld om te delen met collega's in overleg.
    - [Wat betekent "eigen wetenschappelijke kennis van het model"?](#wat-betekent-eigen-wetenschappelijke-kennis-van-het-model-2026-04-17)
 2. [Ontwerpkeuzes](#ontwerpkeuzes)
    - [Null-correlaties bij ontbrekend bewijs](#null-correlaties-bij-ontbrekend-bewijs-2026-04-17)
+   - [Hoe de verbindingen in het oplossingen-netwerk te interpreteren](#hoe-de-verbindingen-in-het-oplossingen-netwerk-te-interpreteren-2026-04-18)
 
 ---
 
@@ -164,6 +165,35 @@ Het systeem verzint geen correlaties als er geen wetenschappelijk bewijs is.
 - Invloedscores (`F_INF`) zijn altijd verplicht numeriek — die weerspiegelen de totale literatuurbeoordeling
 
 **Reden:** Lage verzonnen waarden (zoals r=0.05) zijn misleidend — ze suggereren een zwak verband terwijl het werkelijk "onbekend" is.
+
+---
+
+### Hoe de verbindingen in het oplossingen-netwerk te interpreteren (2026-04-18)
+
+In het oplossingen-subnetwerk (zichtbaar na "Voeg toe aan hoofdnetwerk") zijn er twee soorten verbindingen:
+
+#### 1. Lijn van oplossingsbol naar risicofactor (centrum)
+- Elke oplossingsbol heeft een gestreepte lijn naar de risicofactor
+- Betekenis: **deze interventie pakt de factor direct aan**
+- Het percentage in de bol is de **individuele effectiviteitsscore** — hoe sterk de interventie de factor verbetert (0–100%)
+
+#### 2. Verbindingen tussen oplossingsbolletjes onderling
+- Betekenis: **synergie** — twee interventies versterken elkaar wanneer ze samen worden ingezet
+- Het is **geen** volgorde, **geen** causaliteit, en **geen** correlatie met de risicofactor
+- De **dikte** van de lijn = Pearson r tussen de twee interventies: dikker = sterker synergetisch effect
+- Voorbeeld: "Buurtcoach aanstellen" en "Straatfeesten organiseren" verbonden met r=0,7 betekent dat de combinatie meer bereikt dan de som van beide los
+
+#### Praktische leeswijze
+
+| Element | Wat het betekent |
+|---------|-----------------|
+| % in de bol | Hoe sterk die interventie de risicofactor aanpakt |
+| Lijn naar centrum | Directe koppeling aan de risicofactor |
+| Lijn tussen bollen | Synergie: samen inzetten loont |
+| Dikte van lijn | Sterkte van de synergie (r-waarde) |
+
+#### Prioritering
+Interventies met een **hoog percentage én veel dikke verbindingen** naar andere interventies zijn strategisch het meest waardevol: ze zijn zowel individueel effectief als een hefboom voor andere maatregelen.
 
 ---
 
