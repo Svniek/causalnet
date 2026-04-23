@@ -55,6 +55,12 @@ export const callAPI = async (apiKey, messages, system, maxTokens) => {
         lastError = msg;
         continue;
       }
+      if (/credit|balance|billing|Plans & Billing/i.test(msg)) {
+        const hint = apiKey?.trim()
+          ? "Je eigen API-sleutel heeft onvoldoende tegoed. Ga naar console.anthropic.com → Plans & Billing om tegoed op te waarderen."
+          : "Het server-API-tegoed is op. Voer je eigen Anthropic API-sleutel in via het sleutelpictogram rechtsboven.";
+        throw new Error(hint);
+      }
       throw new Error(msg);
     }
 
